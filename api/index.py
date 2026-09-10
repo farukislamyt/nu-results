@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -20,6 +20,8 @@ NU_URL = "https://results.nu.ac.bd/honours"
 SESSION_TTL = 5 * 60
 RATE_WINDOW = 60
 RATE_LIMIT = 20
+PUBLIC_DIR = "public"
+PAGES_DIR = os.path.join(PUBLIC_DIR, "pages")
 _rate_cache: dict[str, list[float]] = {}
 
 
@@ -216,4 +218,11 @@ def sitemap(request: Request):
     return PlainTextResponse(xml, media_type="application/xml")
 
 
-app.mount("/", StaticFiles(directory="public", html=True), name="public")
+# Keep public, clean URLs while storing informational pages in a dedicated directory.
+for _page in ("how-to-use", "grading", "about", "privacy", "disclaimer"):
+    def _serve_page(page: str = _page):
+        return FileResponse(os.path.join(PAGES_DIR, f"{page}.html"))
+    app.add_api_route(f"/{_page}.html", _serve_page, methods=["GET"], include_in_schema=False)
+
+
+app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
