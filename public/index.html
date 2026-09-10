@@ -1,82 +1,46 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#5b0b3a">
-  <meta name="description" content="Fast, mobile-friendly National University Bangladesh result viewer.">
-  <title>NU Results — National University Bangladesh</title>
-  <style>
-    :root{--primary:#5b0b3a;--primary2:#8b2d87;--accent:#1677d2;--bg:#f5f7fb;--text:#17202a;--muted:#667085;--card:#fff;--border:#e5e7eb;--success:#147a3e;--danger:#b42318;--warning:#9a6700;--shadow:0 16px 45px rgba(16,24,40,.10)}
-    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-    button,input,select{font:inherit}.hero{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;padding:34px 18px 58px;text-align:center}.hero h1{margin:0 0 7px;font-size:clamp(30px,7vw,46px);letter-spacing:-.5px}.hero p{margin:0;opacity:.92}.wrap{width:min(980px,calc(100% - 24px));margin:-28px auto 45px}.card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:24px;box-shadow:var(--shadow)}
-    .toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:18px}.toolbar h2{margin:0}.badge{font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:#edf7f0;color:var(--success)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.field label{display:block;font-weight:700;margin-bottom:7px}.field input,.field select{width:100%;padding:13px 14px;border:1px solid #cfd4dc;border-radius:12px;font-size:16px;background:#fff;outline:none}.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px #1677d218}.full{grid-column:1/-1}
-    .captcha-row{display:flex;align-items:center;justify-content:center;gap:10px;margin:20px 0 4px}.captcha-box{min-width:150px;text-align:center;padding:12px 16px;border:1px dashed #b9c0ca;border-radius:12px;background:#fafafa;font-size:20px;font-weight:800;letter-spacing:1px}.captcha-row input{width:110px;text-align:center}.icon-btn{background:#eef4fb;color:#155a91;border:0;border-radius:10px;padding:10px 12px;cursor:pointer}.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}button.primary{border:0;border-radius:999px;background:var(--success);color:#fff;padding:13px 28px;font-weight:800;cursor:pointer;min-width:170px}button.secondary{border:0;border-radius:999px;background:#344054;color:#fff;padding:13px 22px;font-weight:750;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.status{margin-top:15px;padding:12px 14px;border-radius:11px;font-size:14px}.error{background:#fef3f2;color:var(--danger)}.success{background:#ecfdf3;color:var(--success)}.info{background:#eff8ff;color:#175cd3}.hidden{display:none!important}.muted{color:var(--muted)}.tiny{font-size:12px}
-    .history{margin-top:18px}.history-head{display:flex;justify-content:space-between;align-items:center}.history-list{display:flex;gap:8px;flex-wrap:wrap}.history-item{border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;font-size:13px}.clear{border:0;background:none;color:var(--danger);cursor:pointer;font-size:12px}
-    .result{margin-top:22px}.result-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;border-bottom:3px solid var(--accent);padding-bottom:16px}.result-head h2{margin:0 0 4px}.result-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.result-actions button{border:0;border-radius:10px;padding:9px 12px;background:#eef4fb;color:#175a91;cursor:pointer;font-weight:700}.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:18px 0}.fact{background:#f7f8fa;padding:14px;border-radius:12px;min-width:0}.fact small{display:block;color:var(--muted);margin-bottom:4px}.fact b{overflow-wrap:anywhere}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}.stat{padding:15px;border-radius:12px;background:#f0f7ff;text-align:center}.stat small{display:block;color:var(--muted)}.stat strong{display:block;font-size:22px;margin-top:3px}.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px}.table{width:100%;border-collapse:collapse;min-width:620px}.table th,.table td{border-bottom:1px solid #e5e7eb;padding:11px;text-align:left}.table th{background:#eaf4ff;font-size:13px}.table tr:last-child td{border-bottom:0}.grade{font-weight:800}.note{margin-top:14px;padding:12px;border-radius:10px;background:#fff8e6;color:#7a5200;font-size:13px}footer{text-align:center;color:var(--muted);padding:0 20px 30px;line-height:1.6}.links{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:8px}.links a{color:#475467;text-decoration:none}.links a:hover{text-decoration:underline}
-    @media(max-width:650px){.grid,.facts,.summary{grid-template-columns:1fr}.full{grid-column:auto}.card{padding:18px;border-radius:18px}.toolbar,.result-head{display:block}.result-actions{justify-content:flex-start;margin-top:12px}.captcha-row{flex-wrap:wrap}.captcha-box{flex:1}.wrap{width:min(100% - 14px,980px)}}
-    @media print{body{background:#fff}.hero,.search-card,.history,footer,.result-actions{display:none!important}.wrap{width:100%;margin:0}.result{display:block!important;border:0;box-shadow:none;padding:0}.result-head{border-bottom:2px solid #000}.fact,.stat{background:#fff;border:1px solid #ddd}.table-wrap{overflow:visible}.table{min-width:0;font-size:11px}}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5b0b3a">
+<meta name="description" content="Check National University Bangladesh Honours results online using examination year, roll, registration number and CAPTCHA.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NU Results — National University Bangladesh">
+<meta property="og:description" content="A fast, mobile-friendly independent interface for checking National University Bangladesh results.">
+<meta property="og:url" content="/">
+<title>NU Results — National University Bangladesh</title>
+<link rel="stylesheet" href="/styles.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"NU Results","description":"Independent result-viewing interface for National University Bangladesh results."}</script>
 </head>
 <body>
-<header class="hero"><h1>NU Results</h1><p>National University, Bangladesh · Online Result Viewer</p></header>
-<main class="wrap">
-  <section class="card search-card">
-    <div class="toolbar"><div><h2>Search Result</h2><p class="muted" style="margin:5px 0 0">Check your official NU result using your examination details.</p></div><span class="badge">Live NU Server</span></div>
-    <form id="form">
-      <div class="grid">
-        <div class="field full"><label for="exam">Examination</label><select id="exam" required><option value="">Loading examinations…</option></select></div>
-        <div class="field"><label for="year">Examination Year</label><input id="year" inputmode="numeric" maxlength="4" value="2024" pattern="\d{4}" required></div>
-        <div class="field"><label for="roll">Exam Roll</label><input id="roll" inputmode="numeric" maxlength="11" placeholder="Enter exam roll" required></div>
-        <div class="field full"><label for="reg">Registration Number</label><input id="reg" inputmode="numeric" maxlength="11" placeholder="Enter registration number" required></div>
-      </div>
-      <div class="captcha-row"><div class="captcha-box" id="captchaQuestion">Loading…</div><input id="captcha" inputmode="numeric" maxlength="5" placeholder="Answer" required><button type="button" class="icon-btn" id="refresh" title="Refresh CAPTCHA">↻</button></div>
-      <div class="center"><button class="primary" id="submit" type="submit">🔎 View Result</button></div>
-      <div id="status" class="status hidden" role="alert"></div>
-    </form>
-    <div class="history hidden" id="historyBox"><div class="history-head"><b>Recent searches</b><button class="clear" id="clearHistory" type="button">Clear</button></div><div class="history-list" id="historyList"></div></div>
-  </section>
-  <section id="result" class="card result hidden"></section>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<nav class="nav" aria-label="Primary navigation"><a class="brand" href="/">NU Results</a><button class="menu" id="menu" type="button" aria-expanded="false" aria-controls="navLinks">☰ <span class="sr-only">Menu</span></button><div class="nav-links" id="navLinks"><a href="/" aria-current="page">Home</a><a href="/how-to-use.html">How to Use</a><a href="/grading.html">Grading</a><a href="/about.html">About</a><a href="/privacy.html">Privacy</a></div></nav>
+<section class="hero"><h1>NU Results</h1><p>National University, Bangladesh · Fast, mobile-friendly result viewer</p></section>
+</header>
+<main id="main" class="wrap">
+<section class="card search-card" aria-labelledby="search-title">
+<div class="toolbar"><div><h2 id="search-title">Search Result</h2><p class="muted">Enter your examination details to view the result returned by the NU result server.</p></div><span class="badge">Live NU Server</span></div>
+<form id="form" novalidate>
+<div class="grid">
+<div class="field full"><label for="exam">Examination</label><select id="exam" required><option value="">Loading examinations…</option></select></div>
+<div class="field"><label for="year">Examination Year</label><input id="year" inputmode="numeric" maxlength="4" value="2024" pattern="\d{4}" placeholder="e.g. 2024" required></div>
+<div class="field"><label for="roll">Exam Roll</label><input id="roll" inputmode="numeric" maxlength="11" placeholder="Enter exam roll" autocomplete="off" required></div>
+<div class="field full"><label for="reg">Registration Number</label><input id="reg" inputmode="numeric" maxlength="11" placeholder="Enter registration number" autocomplete="off" required></div>
+</div>
+<div class="captcha-row"><div class="captcha-box" id="captchaQuestion" aria-live="polite">Loading CAPTCHA…</div><input id="captcha" inputmode="numeric" maxlength="5" placeholder="Answer" aria-label="CAPTCHA answer" autocomplete="off" required><button type="button" class="icon-btn" id="refresh" title="Refresh CAPTCHA" aria-label="Refresh CAPTCHA">↻</button></div>
+<div class="center"><button class="primary" id="submit" type="submit">🔎 View Result</button></div>
+<div id="status" class="status hidden" role="alert" aria-live="polite"></div>
+</form>
+<div class="history hidden" id="historyBox"><div class="history-head"><b>Recent searches</b><button class="clear" id="clearHistory" type="button">Clear</button></div><div class="history-list" id="historyList"></div></div>
+</section>
+<section id="result" class="card result hidden" aria-live="polite"></section>
+<section class="info-grid" aria-label="Result information"><div class="info-box"><h2>Check NU Result Online</h2><p>Use the examination, year, exam roll, registration number and CAPTCHA to request a result from the National University result server.</p></div><div class="info-box"><h2>Need Help?</h2><p>Read the <a href="/how-to-use.html">step-by-step guide</a> or review the <a href="/grading.html">grading and GPA information</a>.</p></div></section>
 </main>
-<footer><div class="links"><a href="https://results.nu.ac.bd/honours" target="_blank" rel="noopener">Official NU Result Portal</a><a href="https://www.nu.ac.bd/online-service.php" target="_blank" rel="noopener">NU Online Services</a></div>Independent result viewer · Always verify important information with the official NU portal.</footer>
-<script>
-let state='';
-const $=id=>document.getElementById(id);
-const HISTORY_KEY='nu-results-history-v1';
-const EXAMS_FALLBACK={2201:'Bachelor Degree Honours 1st Year',2202:'Bachelor Degree Honours 2nd Year',2203:'Bachelor Degree Honours 3rd Year',2204:'Bachelor Degree Honours 4th Year',2205:'Bachelor Degree Honours Consolidated Result'};
-function showStatus(msg,type='error'){$('status').textContent=msg;$('status').className='status '+type}
-function hideStatus(){$('status').className='status hidden'}
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function loadExaminations(){
-  let exams=EXAMS_FALLBACK;
-  try{const r=await fetch('/api/examinations');const d=await r.json();if(d.examinations)exams=d.examinations}catch(_){ }
-  $('exam').innerHTML=Object.entries(exams).map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');
-  const saved=localStorage.getItem('nu-last-exam');if(saved&&exams[saved])$('exam').value=saved;
-}
-async function loadCaptcha(){
-  $('captchaQuestion').textContent='Loading…';$('captcha').value='';$('refresh').disabled=true;hideStatus();
-  try{const r=await fetch('/api/captcha');const d=await r.json();if(!r.ok||d.error)throw Error(d.error||'Could not load CAPTCHA');state=d.session;$('captchaQuestion').textContent=d.captcha;}
-  catch(e){$('captchaQuestion').textContent='Unavailable';showStatus(e.message)}finally{$('refresh').disabled=false}
-}
-function getHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch(_){return[]}}
-function saveHistory(){const item={exam:$('exam').value,year:$('year').value,roll:$('roll').value,reg:$('reg').value};let list=getHistory().filter(x=>!(x.exam===item.exam&&x.year===item.year&&x.roll===item.roll&&x.reg===item.reg));list.unshift(item);localStorage.setItem(HISTORY_KEY,JSON.stringify(list.slice(0,5)));renderHistory()}
-function renderHistory(){const list=getHistory();if(!list.length){$('historyBox').classList.add('hidden');return}$('historyBox').classList.remove('hidden');$('historyList').innerHTML=list.map((x,i)=>`<button class="history-item" type="button" data-i="${i}">${esc(x.year)} · ${esc(x.roll)}</button>`).join('');document.querySelectorAll('.history-item').forEach(b=>b.onclick=()=>{const x=list[Number(b.dataset.i)];$('exam').value=x.exam;$('year').value=x.year;$('roll').value=x.roll;$('reg').value=x.reg;loadCaptcha();window.scrollTo({top:0,behavior:'smooth'})})}
-function render(d){
-  const s=d.student||{}, summary=d.summary||{};
-  const rows=(d.courses||[]).map(c=>`<tr><td>${esc(c.course_code)}</td><td>${esc(c.course_title)}</td><td>${esc(c.credit)}</td><td class="grade">${esc(c.grade)}</td><td>${c.grade_point==null?'—':esc(Number(c.grade_point).toFixed(2))}</td></tr>`).join('');
-  const title=$('exam').selectedOptions[0]?.textContent||'NU Result';
-  $('result').innerHTML=`<div class="result-head"><div><h2>National University, Bangladesh</h2><p class="muted" style="margin:4px 0">${esc(title)} · Online Result Sheet</p></div><div class="result-actions"><button type="button" onclick="printResult()">🖨 Print / PDF</button><button type="button" onclick="shareResult()">↗ Share</button><button type="button" onclick="copyResult()">⧉ Copy</button></div></div><div class="facts"><div class="fact"><small>Student</small><b>${esc(s.name)}</b></div><div class="fact"><small>College</small><b>${esc(s.college)}</b></div><div class="fact"><small>Father's Name</small><b>${esc(s.father)}</b></div><div class="fact"><small>Mother's Name</small><b>${esc(s.mother)}</b></div><div class="fact"><small>Session</small><b>${esc(s.session)}</b></div><div class="fact"><small>Student Type</small><b>${esc(s.student_type)}</b></div><div class="fact"><small>Subject</small><b>${esc(s.subject)}</b></div></div><div class="summary"><div class="stat"><small>Total Courses</small><strong>${esc(summary.total_courses??(d.courses||[]).length)}</strong></div><div class="stat"><small>Total Credit</small><strong>${esc(summary.total_credit??'—')}</strong></div><div class="stat"><small>Calculated GPA</small><strong>${summary.gpa==null?'—':esc(Number(summary.gpa).toFixed(2))}</strong></div></div><h3>Course-wise Result</h3><div class="table-wrap"><table class="table"><thead><tr><th>Course Code</th><th>Course Title</th><th>Credit</th><th>Grade</th><th>Grade Point</th></tr></thead><tbody>${rows||'<tr><td colspan="5">No course data found.</td></tr>'}</tbody></table></div><div class="note">Grade points and GPA are calculated from the letter grades returned by the NU result page. For official academic decisions, verify against the National University portal.</div>`;
-  $('result').classList.remove('hidden');$('result').scrollIntoView({behavior:'smooth'});
-}
-function resultText(){const s=document.querySelector('.result');return s?`National University Result\n${s.innerText}`:''}
-function printResult(){window.print()}
-async function copyResult(){try{await navigator.clipboard.writeText(resultText());showStatus('Result copied to clipboard.','success');window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})}catch(_){showStatus('Could not copy automatically. Please use Print / PDF.')}}
-async function shareResult(){const text=resultText();if(navigator.share){try{await navigator.share({title:'NU Result',text})}catch(_){}}else{await copyResult()}}
-$('refresh').addEventListener('click',loadCaptcha);
-$('clearHistory').addEventListener('click',()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()});
-$('exam').addEventListener('change',()=>localStorage.setItem('nu-last-exam',$('exam').value));
-$('form').addEventListener('submit',async e=>{e.preventDefault();hideStatus();if(!state){await loadCaptcha();return}$('submit').disabled=true;$('submit').textContent='Searching…';$('result').classList.add('hidden');try{const payload={session:state,examination_name:$('exam').value,year:$('year').value,examination_roll:$('roll').value,registration_no:$('reg').value,captcha:$('captcha').value};const r=await fetch('/api/result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok||!d.found)throw Error(d.message||d.error||'Result not found');saveHistory();render(d)}catch(e){showStatus(e.message);await loadCaptcha()}finally{$('submit').disabled=false;$('submit').textContent='🔎 View Result'}});
-(async()=>{await loadExaminations();renderHistory();await loadCaptcha()})();
-</script>
+<footer class="footer"><div class="footer-links"><a href="https://results.nu.ac.bd/honours" target="_blank" rel="noopener noreferrer">Official NU Result Portal</a><a href="https://www.nu.ac.bd/online-service.php" target="_blank" rel="noopener noreferrer">NU Online Services</a><a href="/disclaimer.html">Disclaimer</a></div><div>Independent result-viewing interface · Verify important information with the official National University portal.</div></footer>
+<script src="/app.js" defer></script>
 </body>
 </html>
