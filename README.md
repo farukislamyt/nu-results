@@ -23,6 +23,40 @@ A modern, mobile-first and independent result-viewing interface for National Uni
 - How-to-use, grading, about, privacy and disclaimer pages
 - Security response headers on Vercel
 
+## Project structure
+
+```text
+nu-results/
+├── api/
+│   └── index.py                 # FastAPI API + clean public page routes
+├── public/
+│   ├── index.html               # Main result search UI
+│   ├── pages/                   # Public informational pages
+│   │   ├── about.html
+│   │   ├── disclaimer.html
+│   │   ├── grading.html
+│   │   ├── how-to-use.html
+│   │   └── privacy.html
+│   └── assets/
+│       ├── css/
+│       │   └── styles.css
+│       ├── js/
+│       │   └── app.js
+│       └── images/
+├── tests/
+│   └── test_api.py              # Backend regression tests
+├── .github/
+│   └── workflows/
+│       └── qa.yml               # Automated syntax, tests and structure checks
+├── .env.example
+├── .gitignore
+├── README.md
+├── requirements.txt
+└── vercel.json
+```
+
+Clean public URLs such as `/about.html` are preserved even though informational page files live under `public/pages/`. The FastAPI routes and Vercel rewrites keep local and production URL behavior aligned.
+
 ## Stack
 
 - Python + FastAPI
@@ -44,10 +78,20 @@ uvicorn api.index:app --reload
 
 Open `http://127.0.0.1:8000/`.
 
+## Quality checks
+
+Run the same core checks used by GitHub Actions locally:
+
+```bash
+python -m py_compile api/index.py
+node --check public/assets/js/app.js
+SESSION_SIGNING_SECRET="ci-test-secret" python -m unittest discover -s tests -p 'test_*.py'
+```
+
 ## SEO endpoints
 
 - `/robots.txt` is generated dynamically from the current host.
-- `/sitemap.xml` lists only public informational pages intended for indexing.
+- `/sitemap.xml` lists only public pages intended for indexing.
 - `/api/` is excluded from crawling.
 
 The production domain should be added to Google Search Console and Bing Webmaster Tools after deployment. Search engines may take time to crawl and index pages; indexing is not guaranteed.
@@ -56,7 +100,7 @@ The production domain should be added to Google Search Console and Bing Webmaste
 
 Create `SESSION_SIGNING_SECRET` as a Vercel environment variable using a new, long random value. Never commit the secret to GitHub and never reuse a secret exposed in chat, logs or source control.
 
-The API is under `/api`, while the frontend and public information pages are served from `public/`.
+The API is under `/api`; the main UI is `public/index.html`; assets are under `public/assets`; informational source files are under `public/pages`; clean informational URLs are handled by the application and Vercel rewrites.
 
 ## Security notes
 
