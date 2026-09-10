@@ -15,13 +15,13 @@
       ]
     },
     {
-      "source": "/styles.css",
+      "source": "/assets/css/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
     },
     {
-      "source": "/app.js",
+      "source": "/assets/js/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
@@ -31,6 +31,11 @@
     { "source": "/api/:path*", "destination": "/api/index.py" },
     { "source": "/robots.txt", "destination": "/api/index.py" },
     { "source": "/sitemap.xml", "destination": "/api/index.py" },
+    { "source": "/how-to-use.html", "destination": "/api/index.py" },
+    { "source": "/grading.html", "destination": "/api/index.py" },
+    { "source": "/about.html", "destination": "/api/index.py" },
+    { "source": "/privacy.html", "destination": "/api/index.py" },
+    { "source": "/disclaimer.html", "destination": "/api/index.py" },
     { "source": "/", "destination": "/index.html" }
   ]
 }
