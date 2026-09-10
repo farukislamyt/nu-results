@@ -8,11 +8,13 @@ from bs4 import BeautifulSoup
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="NU Results API", version="2.0.1")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+app = FastAPI(title="NU Results API", version="2.1.0")
+# The frontend is served by this same application, so cross-origin access is unnecessary.
+app.add_middleware(CORSMiddleware, allow_origins=[], allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Accept"])
 
 NU_URL = "https://results.nu.ac.bd/honours"
 SESSION_TTL = 5 * 60
@@ -143,7 +145,7 @@ def rate_limited(request: Request) -> bool:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "nu-results", "version": "2.0.1"}
+    return {"ok": True, "service": "nu-results", "version": "2.1.0"}
 
 
 @app.get("/api/examinations")
@@ -197,6 +199,21 @@ def search_result(body: ResultRequest, request: Request):
         return {"found": False, "message": "Server security configuration is incomplete."}
     except requests.RequestException:
         return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots(request: Request):
+    base = str(request.base_url).rstrip("/")
+    return f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {base}/sitemap.xml\n"
+
+
+@app.get("/sitemap.xml", response_class=PlainTextResponse)
+def sitemap(request: Request):
+    base = str(request.base_url).rstrip("/")
+    pages = ["/", "/how-to-use.html", "/grading.html", "/about.html", "/privacy.html", "/disclaimer.html"]
+    urls = "".join(f"<url><loc>{base}{path}</loc></url>" for path in pages)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
+    return PlainTextResponse(xml, media_type="application/xml")
 
 
 app.mount("/", StaticFiles(directory="public", html=True), name="public")
