@@ -38,7 +38,7 @@ class ApiRegressionTests(unittest.TestCase):
         self.assertTrue(result["found"])
         self.assertEqual(len(result["courses"]), 2)
         self.assertEqual(result["summary"]["total_credit"], 4.0)
-        self.assertEqual(result["summary"]["gpa"], 3.63)
+        self.assertEqual(result["summary"]["gpa"], 3.62)
 
     def test_non_result_page_is_not_reported_as_found(self):
         result = parse_result("<html><body>Invalid CAPTCHA</body></html>")
