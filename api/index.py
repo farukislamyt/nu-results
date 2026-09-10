@@ -11,13 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="NU Results API", version="2.0.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="NU Results API", version="2.0.1")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
 
 NU_URL = "https://results.nu.ac.bd/honours"
 SESSION_TTL = 5 * 60
@@ -38,7 +33,8 @@ def fernet() -> Fernet:
 
 
 def seal(payload: dict[str, Any]) -> str:
-    payload = {**payload, "iat": int(time.time()), "exp": int(time.time()) + SESSION_TTL}
+    now = int(time.time())
+    payload = {**payload, "iat": now, "exp": now + SESSION_TTL}
     import json
     return fernet().encrypt(json.dumps(payload, separators=(",", ":")).encode()).decode()
 
@@ -76,35 +72,20 @@ EXAMINATIONS = {
 def result_value(soup: BeautifulSoup, label: str) -> str | None:
     for box in soup.select("div.p-3.rounded-3.bg-light"):
         label_el = box.find("span", class_=lambda c: c and "text-muted" in c)
-        if not label_el:
-            continue
-        if label_el.get_text(" ", strip=True).lower() == label.lower():
+        if label_el and label_el.get_text(" ", strip=True).lower() == label.lower():
             full = box.get_text(" ", strip=True)
             return full[len(label):].strip()
     return None
 
 
 def grade_point(grade: str) -> float | None:
-    return {
-        "A+": 4.00,
-        "A": 3.75,
-        "A-": 3.50,
-        "B+": 3.25,
-        "B": 3.00,
-        "B-": 2.75,
-        "C+": 2.50,
-        "C": 2.25,
-        "D": 2.00,
-        "F": 0.00,
-    }.get(grade.upper().strip())
+    return {"A+": 4.00, "A": 3.75, "A-": 3.50, "B+": 3.25, "B": 3.00, "B-": 2.75, "C+": 2.50, "C": 2.25, "D": 2.00, "F": 0.00}.get(grade.upper().strip())
 
 
 def parse_result(html: str) -> dict[str, Any]:
     soup = BeautifulSoup(html, "html.parser")
-    page_text = soup.get_text(" ", strip=True)
     if "ONLINE RESULT SHEET" not in html and "Course wise Result" not in html and "Course Wise Result" not in html:
         return {"found": False}
-
     courses: list[dict[str, Any]] = []
     for table in soup.find_all("table"):
         headers = [th.get_text(" ", strip=True).lower() for th in table.find_all("th")]
@@ -116,18 +97,9 @@ def parse_result(html: str) -> dict[str, Any]:
         for row in tbody.find_all("tr"):
             cells = [c.get_text(" ", strip=True) for c in row.find_all("td")]
             if len(cells) >= 4:
-                point = grade_point(cells[3])
-                courses.append({
-                    "course_code": cells[0],
-                    "course_title": cells[1],
-                    "credit": cells[2],
-                    "grade": cells[3],
-                    "grade_point": point,
-                })
+                courses.append({"course_code": cells[0], "course_title": cells[1], "credit": cells[2], "grade": cells[3], "grade_point": grade_point(cells[3])})
         break
-
-    total_credit = 0.0
-    total_points = 0.0
+    total_credit = total_points = 0.0
     graded_count = 0
     for course in courses:
         try:
@@ -139,29 +111,13 @@ def parse_result(html: str) -> dict[str, Any]:
                 graded_count += 1
         except (ValueError, TypeError):
             pass
-
-    gpa = round(total_points / total_credit, 2) if total_credit and graded_count else None
-
-    student = {
-        "name": result_value(soup, "Name of Student"),
-        "father": result_value(soup, "Father's Name"),
-        "mother": result_value(soup, "Mother's Name"),
-        "college": result_value(soup, "College"),
-        "session": result_value(soup, "Session"),
-        "student_type": result_value(soup, "Student Type"),
-        "subject": result_value(soup, "Subject"),
-    }
-
-    return {
-        "found": True,
-        "student": student,
+    return {"found": True, "student": {
+        "name": result_value(soup, "Name of Student"), "father": result_value(soup, "Father's Name"),
+        "mother": result_value(soup, "Mother's Name"), "college": result_value(soup, "College"),
+        "session": result_value(soup, "Session"), "student_type": result_value(soup, "Student Type"),
+        "subject": result_value(soup, "Subject")},
         "courses": courses,
-        "summary": {
-            "total_courses": len(courses),
-            "total_credit": round(total_credit, 2),
-            "gpa": gpa,
-        },
-    }
+        "summary": {"total_courses": len(courses), "total_credit": round(total_credit, 2), "gpa": round(total_points / total_credit, 2) if total_credit and graded_count else None}}
 
 
 def client_ip(request: Request) -> str:
@@ -187,7 +143,7 @@ def rate_limited(request: Request) -> bool:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "nu-results", "version": "2.0.0"}
+    return {"ok": True, "service": "nu-results", "version": "2.0.1"}
 
 
 @app.get("/api/examinations")
@@ -208,11 +164,7 @@ def captcha(request: Request):
         captcha_el = soup.select_one("span.fw-bold.fs-5")
         if not token_el or not captcha_el:
             return {"error": "NU result form could not be read."}
-        return {
-            "captcha": captcha_el.get_text(" ", strip=True),
-            "session": seal({"csrf": token_el.get("value", ""), "cookies": client.cookies.get_dict()}),
-            "expires_in": SESSION_TTL,
-        }
+        return {"captcha": captcha_el.get_text(" ", strip=True), "session": seal({"csrf": token_el.get("value", ""), "cookies": client.cookies.get_dict()}), "expires_in": SESSION_TTL}
     except RuntimeError:
         return {"error": "Server security configuration is incomplete."}
     except requests.RequestException:
@@ -233,15 +185,7 @@ def search_result(body: ResultRequest, request: Request):
             raise ValueError("missing csrf")
         client = requests.Session()
         client.cookies.update(cookies)
-        data = {
-            "_token": csrf,
-            "examination_name": body.examination_name,
-            "year": body.year,
-            "examination_roll": body.examination_roll,
-            "registration_no": body.registration_no,
-            "captcha": body.captcha,
-        }
-        response = client.post(NU_URL, data=data, timeout=20, allow_redirects=True)
+        response = client.post(NU_URL, data={"_token": csrf, "examination_name": body.examination_name, "year": body.year, "examination_roll": body.examination_roll, "registration_no": body.registration_no, "captcha": body.captcha}, timeout=28, allow_redirects=True)
         response.raise_for_status()
         parsed = parse_result(response.text)
         if not parsed.get("found"):
@@ -252,7 +196,7 @@ def search_result(body: ResultRequest, request: Request):
     except RuntimeError:
         return {"found": False, "message": "Server security configuration is incomplete."}
     except requests.RequestException:
-        return {"found": False, "message": "NU result server is temporarily unavailable."}
+        return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
 
 
 app.mount("/", StaticFiles(directory="public", html=True), name="public")
