@@ -9,6 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="NU Results API", version="1.0.0")
@@ -47,11 +48,11 @@ def unseal(value: str) -> dict[str, Any]:
 
 class ResultRequest(BaseModel):
     session: str
-    examination_name: str = Field(pattern=r"^\d+$", max_length=10)
-    year: str = Field(pattern=r"^\d{4}$")
-    examination_roll: str = Field(pattern=r"^\d{5,11}$")
-    registration_no: str = Field(pattern=r"^\d{5,11}$")
-    captcha: str = Field(pattern=r"^\d{1,5}$")
+    examination_name: str = Field(regex=r"^\d+$", max_length=10)
+    year: str = Field(regex=r"^\d{4}$")
+    examination_roll: str = Field(regex=r"^\d{5,11}$")
+    registration_no: str = Field(regex=r"^\d{5,11}$")
+    captcha: str = Field(regex=r"^\d{1,5}$")
 
 
 def result_value(soup: BeautifulSoup, label: str) -> str | None:
@@ -152,3 +153,6 @@ def search_result(body: ResultRequest):
         return {"found": False, "message": "Search session is invalid. Please refresh the CAPTCHA."}
     except requests.RequestException:
         return {"found": False, "message": "NU result server is temporarily unavailable."}
+
+
+app.mount("/", StaticFiles(directory="public", html=True), name="public")
