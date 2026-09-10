@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NU Results — National University Bangladesh</title>
+  <meta name="description" content="A modern result viewer for National University Bangladesh.">
+  <style>
+    :root{--primary:#560636;--accent:#1276cc;--bg:#f5f7fb;--text:#17202a;--muted:#667085;--card:#fff;--border:#e5e7eb;--success:#16803c;--danger:#b42318}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .hero{background:linear-gradient(135deg,#560636,#822991);color:#fff;padding:42px 20px;text-align:center}.hero h1{margin:0 0 8px;font-size:clamp(28px,6vw,44px)}.hero p{margin:0;opacity:.9}
+    .wrap{width:min(960px,calc(100% - 28px));margin:-20px auto 40px}.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:0 12px 35px #10182814}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.field label{display:block;font-weight:650;margin-bottom:7px}.field input,.field select{width:100%;padding:13px 14px;border:1px solid #cfd4dc;border-radius:11px;font-size:16px;background:#fff}.full{grid-column:1/-1}
+    .captcha{display:flex;align-items:center;justify-content:center;gap:12px;margin:20px 0}.captcha strong{font-size:20px}.captcha input{width:100px;text-align:center}
+    button{border:0;border-radius:999px;background:var(--success);color:#fff;padding:13px 24px;font-weight:700;font-size:16px;cursor:pointer}.center{text-align:center}.muted{color:var(--muted)}.hidden{display:none}.status{margin-top:15px;padding:12px;border-radius:10px}.error{background:#fef3f2;color:var(--danger)}
+    .result{margin-top:24px}.result-head{border-bottom:3px solid var(--accent);padding-bottom:16px}.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:18px 0}.fact{background:#f7f8fa;padding:14px;border-radius:11px}.fact small{display:block;color:var(--muted);margin-bottom:4px}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:600px}.table th,.table td{border:1px solid #dfe3e8;padding:11px;text-align:left}.table th{background:#eaf4ff}.print{background:#344054;margin-top:18px}
+    footer{text-align:center;color:var(--muted);padding:20px}@media(max-width:650px){.grid,.facts{grid-template-columns:1fr}.full{grid-column:auto}.card{padding:18px}.captcha{flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+<header class="hero"><h1>NU Results</h1><p>National University, Bangladesh · Online Result Viewer</p></header>
+<main class="wrap">
+  <section class="card">
+    <h2>Search your result</h2>
+    <p class="muted">Currently supporting Bachelor Degree (Honours) 4th Year.</p>
+    <form id="form">
+      <div class="grid">
+        <div class="field full"><label>Examination</label><select id="exam"><option value="2204">Bachelor Degree Honours 4th Year</option></select></div>
+        <div class="field"><label>Examination Year</label><input id="year" inputmode="numeric" maxlength="4" value="2024" required></div>
+        <div class="field"><label>Exam Roll</label><input id="roll" inputmode="numeric" maxlength="11" placeholder="Enter exam roll" required></div>
+        <div class="field full"><label>Registration No.</label><input id="reg" inputmode="numeric" maxlength="11" placeholder="Enter registration number" required></div>
+      </div>
+      <div class="captcha"><strong id="captchaQuestion">Loading CAPTCHA…</strong><input id="captcha" inputmode="numeric" placeholder="Answer" required></div>
+      <div class="center"><button id="submit">View Result</button></div>
+      <div id="status" class="status hidden"></div>
+    </form>
+  </section>
+  <section id="result" class="card result hidden"></section>
+</main>
+<footer>Independent result viewer · Always verify important information with the official NU portal.</footer>
+<script>
+let state='';
+const $=id=>document.getElementById(id);
+async function loadCaptcha(){
+  $('captchaQuestion').textContent='Loading CAPTCHA…'; $('status').className='status hidden';
+  try{const r=await fetch('/api/captcha');const d=await r.json();if(!r.ok||d.error)throw Error(d.error||'Could not load CAPTCHA');state=d.session;$('captchaQuestion').textContent=d.captcha;$('captcha').value='';}
+  catch(e){$('captchaQuestion').textContent='CAPTCHA unavailable';showError(e.message)}
+}
+function showError(msg){$('status').textContent=msg;$('status').className='status error'}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(d){const s=d.student||{};const rows=(d.courses||[]).map(c=>`<tr><td>${esc(c.course_code)}</td><td>${esc(c.course_title)}</td><td>${esc(c.credit)}</td><td><b>${esc(c.grade)}</b></td></tr>`).join('');$('result').innerHTML=`<div class="result-head"><h2>National University, Bangladesh</h2><p class="muted">Online Result Sheet</p></div><div class="facts"><div class="fact"><small>Student</small><b>${esc(s.name)}</b></div><div class="fact"><small>College</small><b>${esc(s.college)}</b></div><div class="fact"><small>Father's Name</small><b>${esc(s.father)}</b></div><div class="fact"><small>Mother's Name</small><b>${esc(s.mother)}</b></div><div class="fact"><small>Session</small><b>${esc(s.session)}</b></div><div class="fact"><small>Subject</small><b>${esc(s.subject)}</b></div></div><h3>Course-wise Result</h3><div class="table-wrap"><table class="table"><thead><tr><th>Course Code</th><th>Course Title</th><th>Credit</th><th>Grade</th></tr></thead><tbody>${rows||'<tr><td colspan="4">No course data found.</td></tr>'}</tbody></table></div><div class="center"><button class="print" onclick="window.print()">Print Result</button></div>`;$('result').classList.remove('hidden');$('result').scrollIntoView({behavior:'smooth'})}
+$('form').addEventListener('submit',async e=>{e.preventDefault();$('submit').disabled=true;$('submit').textContent='Searching…';$('status').className='status hidden';$('result').classList.add('hidden');try{const r=await fetch('/api/result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:state,examination_name:$('exam').value,year:$('year').value,examination_roll:$('roll').value,registration_no:$('reg').value,captcha:$('captcha').value})});const d=await r.json();if(!r.ok||!d.found)throw Error(d.message||d.error||'Result not found');render(d)}catch(e){showError(e.message);loadCaptcha()}finally{$('submit').disabled=false;$('submit').textContent='View Result'}});
+loadCaptcha();
+</script>
+</body></html>
