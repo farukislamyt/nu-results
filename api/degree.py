@@ -27,9 +27,7 @@ def _norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
-def _value(soup: BeautifulSoup, labels: str | tuple[str, ...]) -> str | None:
-    if isinstance(labels, str):
-        labels = (labels,)
+def _value(soup: BeautifulSoup, *labels: str) -> str | None:
     wanted = {_norm(label) for label in labels}
     for row in soup.find_all("tr"):
         cells = row.find_all(["th", "td"])
@@ -41,7 +39,8 @@ def _value(soup: BeautifulSoup, labels: str | tuple[str, ...]) -> str | None:
         for element in soup.find_all(string=re.compile(re.escape(label), re.I)):
             parent = element.parent
             if parent:
-                text = _clean(parent.parent.get_text(" ", strip=True) if parent.parent else parent.get_text(" ", strip=True))
+                container = parent.parent or parent
+                text = _clean(container.get_text(" ", strip=True))
                 if text:
                     match = re.search(re.escape(label) + r"\s*:?[\-]?\s*(.+)$", text, re.I)
                     if match:
@@ -52,19 +51,24 @@ def _value(soup: BeautifulSoup, labels: str | tuple[str, ...]) -> str | None:
 def _course_rows(soup: BeautifulSoup) -> list[dict[str, Any]]:
     courses: list[dict[str, Any]] = []
     for table in soup.find_all("table"):
-        headers = [_clean(th.get_text(" ", strip=True)).lower() if th.get_text(strip=True) else "" for th in table.find_all("th")]
+        headers = [_clean(th.get_text(" ", strip=True)) or "" for th in table.find_all("th")]
         normalized = [_norm(h) for h in headers]
-        if "coursecode" not in normalized or "coursetitle" not in normalized or not any(x in normalized for x in ("ltrgrade", "marksgrade", "grade", "marks")):
+        has_code = any(x in normalized for x in ("coursecode", "code"))
+        has_title = any(x in normalized for x in ("titleofcourse", "coursetitle", "coursename", "title"))
+        has_result = any(x in normalized for x in ("lettergrade", "grade", "marks", "marksgrade", "gradeorpoint", "result"))
+        if not (has_code and has_title and has_result):
             continue
+
         body = table.find("tbody") or table
         for row in body.find_all("tr"):
             cells = [_clean(c.get_text(" ", strip=True)) for c in row.find_all("td")]
             if len(cells) < 3:
                 continue
-            code, title, result = cells[0], cells[1], cells[-1]
+            code, title = cells[0], cells[1]
+            result = cells[-1]
             if not code or not title or not result:
                 continue
-            if re.fullmatch(r"[A-Za-z0-9 .\-/]+", code) is None:
+            if re.fullmatch(r"[A-Za-z0-9 .\-/()]+", code) is None:
                 continue
             courses.append({"course_code": code, "course_title": title, "result": result})
         if courses:
@@ -72,11 +76,36 @@ def _course_rows(soup: BeautifulSoup) -> list[dict[str, Any]]:
     return courses
 
 
+def _extract_gpa(text: str) -> str | None:
+    patterns = (
+        r"(?:overall\s+)?gpa\s*(?:\([^)]*\))?\s*[:\-]?\s*([0-4](?:\.\d{1,2})?)",
+        r"gpa\s*(?:of|=)\s*([0-4](?:\.\d{1,2})?)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if match:
+            value = float(match.group(1))
+            if 0 <= value <= 4:
+                return f"{value:.2f}"
+    return None
+
+
+def _extract_date(text: str, label: str) -> str | None:
+    match = re.search(
+        re.escape(label) + r"\s*:?\s*([0-9]{1,2}[\-/][0-9]{1,2}[\-/][0-9]{2,4}(?:\s+[0-9]{1,2}:?[0-9]{2}(?:\s*[AP]M)?)?)",
+        text,
+        re.I,
+    )
+    return _clean(match.group(1)) if match else None
+
+
 def _is_degree_result(soup: BeautifulSoup) -> bool:
     text = soup.get_text(" ", strip=True).lower()
     return (
-        "online result sheet" in text or "result sheet" in text
-    ) and "coursewise grade / marks" in text and "course code" in text
+        "online result sheet" in text
+        and "course code" in text
+        and ("result" in text or "promoted" in text)
+    )
 
 
 def parse_degree_result(html: str) -> dict[str, Any]:
@@ -84,41 +113,39 @@ def parse_degree_result(html: str) -> dict[str, Any]:
     if not _is_degree_result(soup):
         return {"found": False}
 
+    text = soup.get_text(" ", strip=True)
     courses = _course_rows(soup)
+
     student = {
-        "examination_roll": _value(soup, ("Examination Roll", "Roll No.", "Roll No")),
-        "registration_no": _value(soup, ("Registration No.", "Registration No")),
-        "name": _value(soup, ("Name of Student", "Student's Name", "Students Name")),
-        "father": _value(soup, ("Father's Name", "Father Name")),
-        "mother": _value(soup, ("Mother's Name", "Mother Name")),
-        "college": _value(soup, "College"),
-        "session": _value(soup, "Session"),
-        "student_type": _value(soup, "Student Type"),
-        "course": _value(soup, "Course"),
+        "examination_roll": _value(soup, "Examination Roll", "Roll No.", "Roll No", "Roll"),
+        "registration_no": _value(soup, "Registration No.", "Registration No", "Registration Number"),
+        "name": _value(soup, "Name of Student", "Student Name", "Name"),
+        "father": _value(soup, "Father's Name", "Father Name", "Father"),
+        "mother": _value(soup, "Mother's Name", "Mother Name", "Mother"),
+        "college": _value(soup, "College", "College Name"),
+        "session": _value(soup, "Session", "Academic Session"),
+        "student_type": _value(soup, "Student Type", "StudentType"),
+        "course": _value(soup, "Course", "Course Name"),
     }
 
-    result_status = _value(soup, ("Result", "Result Status"))
+    result_status = _value(soup, "Result Status", "Result", "Final Result", "Status")
     if not result_status:
-        match = re.search(r"\b(Promoted|Not Promoted|Passed|Failed|Improved|Withheld|Absent)\b", soup.get_text(" ", strip=True), re.I)
+        match = re.search(r"\b(Promoted|Not Promoted|Passed|Failed|Withheld|Absent|Pass|Fail)\b", text, re.I)
         result_status = _clean(match.group(1)) if match else None
 
-    gpa = None
-    gpa_match = re.search(r"\bGPA(?:\s*\([^)]*\))?\s*:?\s*([0-4](?:\.\d{1,2})?)\b", soup.get_text(" ", strip=True), re.I)
-    if gpa_match:
-        gpa = float(gpa_match.group(1))
-
-    text = soup.get_text(" ", strip=True)
-    upload_match = re.search(r"Result Upload Date\s*:?\s*([0-9]{1,2}[\-/][0-9]{1,2}[\-/][0-9]{2,4}|[0-9]{1,2}\s+[A-Za-z]{3,9}\s+[0-9]{4})", text, re.I)
-    generated_match = re.search(r"Generated on\s*:?\s*([0-9]{1,2}[\-/][0-9]{1,2}[\-/][0-9]{2,4}|[0-9]{1,2}\s+[A-Za-z]{3,9}\s+[0-9]{4})", text, re.I)
+    gpa = _extract_gpa(text)
+    result_upload_date = _extract_date(text, "Result Upload Date")
+    generated_on = _extract_date(text, "Generated on") or _extract_date(text, "Generated On")
 
     return {
         "found": True,
         "student": student,
         "result_status": result_status,
+        "gpa": float(gpa) if gpa is not None else None,
         "courses": courses,
-        "summary": {"total_courses": len(courses), "gpa": gpa},
+        "summary": {"total_courses": len(courses), "gpa": float(gpa) if gpa is not None else None},
         "dates": {
-            "result_upload_date": upload_match.group(1) if upload_match else None,
-            "generated_on": generated_match.group(1) if generated_match else None,
+            "result_upload_date": result_upload_date,
+            "generated_on": generated_on,
         },
     }
