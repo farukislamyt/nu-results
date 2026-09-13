@@ -31,11 +31,10 @@
     { "source": "/api/:path*", "destination": "/api/index.py" },
     { "source": "/robots.txt", "destination": "/api/index.py" },
     { "source": "/sitemap.xml", "destination": "/api/index.py" },
-    { "source": "/how-to-use.html", "destination": "/api/index.py" },
-    { "source": "/grading.html", "destination": "/api/index.py" },
-    { "source": "/about.html", "destination": "/api/index.py" },
-    { "source": "/privacy.html", "destination": "/api/index.py" },
-    { "source": "/disclaimer.html", "destination": "/api/index.py" },
-    { "source": "/", "destination": "/index.html" }
+    { "source": "/how-to-use.html", "destination": "/pages/how-to-use.html" },
+    { "source": "/grading.html", "destination": "/pages/grading.html" },
+    { "source": "/about.html", "destination": "/pages/about.html" },
+    { "source": "/privacy.html", "destination": "/pages/privacy.html" },
+    { "source": "/disclaimer.html", "destination": "/pages/disclaimer.html" }
   ]
 }
