@@ -6,9 +6,23 @@ const EXAMS_FALLBACK={2201:'Bachelor Degree Honours 1st Year',2202:'Bachelor Deg
 function isDegree(){return currentModule==='degree'}
 function showStatus(msg,type='error'){$('status').textContent=msg;$('status').className='status '+type}
 function hideStatus(){$('status').className='status hidden'}
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function esc(v){return String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}
 function moduleExams(all){return Object.fromEntries(Object.entries(all).filter(([v])=>currentModule==='degree'?v.startsWith('11'):v.startsWith('22')))}
-async function loadExaminations(){let exams=EXAMS_FALLBACK;try{const r=await fetch('/api/examinations',{headers:{Accept:'application/json'}});const d=await r.json();if(r.ok&&d.examinations)exams=d.examinations}catch(_){}const filtered=moduleExams(exams);$('exam').innerHTML='<option value="">Select examination</option>'+Object.entries(filtered).map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');const saved=localStorage.getItem('nu-last-exam');if(saved&&filtered[saved])$('exam').value=saved;updateModuleFields()}
+async function loadExaminations(){
+  $('exam').innerHTML='<option value="">Loading examinations…</option>';
+  const fallback=moduleExams(EXAMS_FALLBACK);
+  let exams=fallback;
+  try{
+    const endpoint=isDegree()?'/api/degree/examinations':'/api/examinations';
+    const r=await fetch(endpoint,{headers:{Accept:'application/json'},cache:'no-store'});
+    const d=await r.json();
+    if(r.ok&&d.examinations)exams=d.examinations;
+  }catch(_){}
+  $('exam').innerHTML='<option value="">Select examination</option>'+Object.entries(exams).map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');
+  const saved=localStorage.getItem('nu-last-exam');
+  if(saved&&exams[saved])$('exam').value=saved;
+  updateModuleFields()
+}
 async function loadCaptcha(){state='';$('captchaQuestion').textContent='Loading CAPTCHA…';$('captcha').value='';$('refresh').disabled=true;hideStatus();try{const endpoint=isDegree()?'/api/degree/captcha':'/api/captcha';const r=await fetch(endpoint,{headers:{Accept:'application/json'}});const d=await r.json();if(!r.ok||d.error)throw Error(d.error||'Could not load CAPTCHA. Please try again.');state=d.session;$('captchaQuestion').textContent=d.captcha}catch(e){$('captchaQuestion').textContent='Unavailable';showStatus(e.message)}finally{$('refresh').disabled=false}}
 function updateModuleFields(){const degree=isDegree();$('roll').required=!degree;$('roll').placeholder=degree?'Optional for Degree Pass':'Enter exam roll';$('search-title').textContent=degree?'Search Degree Pass Result':'Search Honours Result';$('search-description').textContent=degree?'Enter your Degree Pass examination details to view the result returned by the NU result server.':'Enter your Honours examination details to view the result returned by the NU result server.'}
 function chooseModule(module){currentModule=module;state='';$('typeChooser').classList.add('hidden');$('searchCard').classList.remove('hidden');$('result').classList.add('hidden');hideStatus();loadExaminations().then(loadCaptcha)}
