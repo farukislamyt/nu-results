@@ -205,6 +205,8 @@ def search_result(body: ResultRequest, request: Request):
         return {"found": False, "message": "Unsupported examination type."}
     try:
         state = unseal(body.session)
+        if state.get("module") != "honours":
+            raise ValueError("wrong module")
         csrf = state.get("csrf")
         cookies = state.get("cookies") or {}
         if not csrf:
