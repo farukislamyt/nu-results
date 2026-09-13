@@ -8,21 +8,17 @@ from bs4 import BeautifulSoup
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="NU Results API", version="2.1.0")
-# The frontend is served by this same application, so cross-origin access is unnecessary.
+# The frontend is served by Vercel as static files, so cross-origin access is unnecessary.
 app.add_middleware(CORSMiddleware, allow_origins=[], allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Accept"])
 
 NU_URL = "https://results.nu.ac.bd/honours"
 SESSION_TTL = 5 * 60
 RATE_WINDOW = 60
 RATE_LIMIT = 20
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PUBLIC_DIR = os.path.join(BASE_DIR, "public")
-PAGES_DIR = os.path.join(PUBLIC_DIR, "pages")
 _rate_cache: dict[str, list[float]] = {}
 
 
@@ -217,13 +213,3 @@ def sitemap(request: Request):
     urls = "".join(f"<url><loc>{base}{path}</loc></url>" for path in pages)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return PlainTextResponse(xml, media_type="application/xml")
-
-
-# Keep public, clean URLs while storing informational pages in a dedicated directory.
-for _page in ("how-to-use", "grading", "about", "privacy", "disclaimer"):
-    def _serve_page(page: str = _page):
-        return FileResponse(os.path.join(PAGES_DIR, f"{page}.html"))
-    app.add_api_route(f"/{_page}.html", _serve_page, methods=["GET"], include_in_schema=False)
-
-
-app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
