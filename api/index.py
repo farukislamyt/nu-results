@@ -20,7 +20,8 @@ NU_URL = "https://results.nu.ac.bd/honours"
 SESSION_TTL = 5 * 60
 RATE_WINDOW = 60
 RATE_LIMIT = 20
-PUBLIC_DIR = "public"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 PAGES_DIR = os.path.join(PUBLIC_DIR, "pages")
 _rate_cache: dict[str, list[float]] = {}
 
