@@ -22,7 +22,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile Python
-        run: python -m py_compile api/index.py
+        run: python -m py_compile api/index.py api/masters.py masters.py
 
       - name: Check JavaScript syntax
         run: node --check public/assets/js/app.js
@@ -35,6 +35,8 @@ jobs:
       - name: Check required project files
         run: |
           test -f api/index.py
+          test -f api/masters.py
+          test -f masters.py
           test -f public/index.html
           test -f public/assets/css/styles.css
           test -f public/assets/js/app.js

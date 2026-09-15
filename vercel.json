@@ -3,6 +3,9 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 30
+    },
+    "api/masters.py": {
+      "maxDuration": 30
     }
   },
   "headers": [
