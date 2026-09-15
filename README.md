@@ -6,12 +6,16 @@ A modern, mobile-first and independent result-viewing interface for National Uni
 
 - Honours 1st, 2nd, 3rd and 4th Year lookup
 - Honours Consolidated Result option
+- Degree Pass 1st, 2nd and 3rd Year lookup
+- Degree Pass Consolidated Result option
+- Master's Preliminary to Master's and Master's Final lookup
 - Official NU CAPTCHA workflow; no CAPTCHA bypass
 - Encrypted, short-lived server session for NU cookies/CSRF state
 - Input validation and best-effort request rate limiting
 - Structured student and course-wise result parsing
 - Credit and letter-grade display
 - Calculated GPA summary when returned course data supports it
+- Masters CGPA/GPA display when supplied by NU
 - Professional responsive UI for mobile, tablet and desktop
 - Loading, success and error states
 - Print / Save as PDF with a print-optimized result sheet
@@ -28,7 +32,9 @@ A modern, mobile-first and independent result-viewing interface for National Uni
 ```text
 nu-results/
 ├── api/
-│   └── index.py                 # FastAPI API + clean public page routes
+│   ├── index.py                 # Honours + Degree FastAPI API
+│   └── masters.py               # Dedicated Masters API + parser
+├── masters.py                   # Vercel compatibility shim for Masters
 ├── public/
 │   ├── index.html               # Main result search UI
 │   ├── pages/                   # Public informational pages
@@ -44,7 +50,8 @@ nu-results/
 │       │   └── app.js
 │       └── images/
 ├── tests/
-│   └── test_api.py              # Backend regression tests
+│   ├── test_api.py              # Honours + Degree regression tests
+│   └── test_masters.py          # Masters parser regression tests
 ├── .github/
 │   └── workflows/
 │       └── qa.yml               # Automated syntax, tests and structure checks
@@ -54,6 +61,8 @@ nu-results/
 ├── requirements.txt
 └── vercel.json
 ```
+
+The existing Honours and Degree Pass implementations remain separate from the new Masters module. Masters uses its own result endpoint and module-specific encrypted session marker so a session created for one result system cannot be reused by another module.
 
 Clean public URLs such as `/about.html` are preserved even though informational page files live under `public/pages/`. The FastAPI routes and Vercel rewrites keep local and production URL behavior aligned.
 
@@ -83,7 +92,7 @@ Open `http://127.0.0.1:8000/`.
 Run the same core checks used by GitHub Actions locally:
 
 ```bash
-python -m py_compile api/index.py
+python -m py_compile api/index.py api/masters.py masters.py
 node --check public/assets/js/app.js
 SESSION_SIGNING_SECRET="ci-test-secret" python -m unittest discover -s tests -p 'test_*.py'
 ```
@@ -100,7 +109,7 @@ The production domain should be added to Google Search Console and Bing Webmaste
 
 Create `SESSION_SIGNING_SECRET` as a Vercel environment variable using a new, long random value. Never commit the secret to GitHub and never reuse a secret exposed in chat, logs or source control.
 
-The API is under `/api`; the main UI is `public/index.html`; assets are under `public/assets`; informational source files are under `public/pages`; clean informational URLs are handled by the application and Vercel rewrites.
+The API is under `/api`; the main UI is `public/index.html`; assets are under `public/assets`; informational source files are under `public/pages`; clean informational URLs are handled by the application and Vercel rewrites. The Masters serverless function is configured for the same 30-second maximum duration as the existing API.
 
 ## Security notes
 
