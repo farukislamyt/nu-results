@@ -12,7 +12,6 @@ from api.index import rate_limited, seal, unseal
 
 MASTERS_URL = "https://results.nu.ac.bd/masters"
 MASTERS_CAPTCHA_REFRESH_URL = "https://results.nu.ac.bd/refresh-captcha"
-
 MASTERS_EXAMINATIONS = {
     "3302": "Masters Final Result (Available from 2007)",
     "4301": "Preliminary to Master's Result (Available from 2005)",
@@ -54,11 +53,10 @@ def _value(soup: BeautifulSoup, *labels: str) -> str | None:
                 continue
             if seen and value:
                 return value
-        text = _clean(container.get_text(" ", strip=True))
-        if text:
-            match = re.search(r"^" + re.escape(label_text.rstrip(":")) + r"\s*:?[\-]?\s*(.+)$", text, re.I)
-            if match:
-                return _clean(match.group(1))
+        text = _clean(container.get_text(" ", strip=True)) or ""
+        match = re.search(r"^" + re.escape(label_text.rstrip(":")) + r"\s*:?[\-]?\s*(.+)$", text, re.I)
+        if match:
+            return _clean(match.group(1))
     return None
 
 
@@ -88,8 +86,6 @@ def _course_rows(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], str | None]
     for table in soup.find_all("table"):
         headers = [_clean(th.get_text(" ", strip=True)) or "" for th in table.find_all("th")]
         normalized = [_norm(h) for h in headers]
-        if not normalized:
-            continue
         code_index = next((i for i, x in enumerate(normalized) if x == "coursecode"), None)
         title_index = next((i for i, x in enumerate(normalized) if x in {"titleofcourse", "coursetitle", "coursename"}), None)
         credit_index = next((i for i, x in enumerate(normalized) if x in {"credit", "credits"}), None)
@@ -106,8 +102,13 @@ def _course_rows(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], str | None]
             code, title, result = cells[code_index], cells[title_index], cells[result_index]
             if not code or not title or not result or not re.fullmatch(r"\d{4,8}", code):
                 continue
-            credit = cells[credit_index] if credit_index is not None else None
-            courses.append({"course_code": code, "course_title": title, "credit": credit, "grade": result, "result": result})
+            courses.append({
+                "course_code": code,
+                "course_title": title,
+                "credit": cells[credit_index] if credit_index is not None else None,
+                "grade": result,
+                "result": result,
+            })
         if courses:
             break
     return courses, result_label
@@ -179,7 +180,7 @@ def parse_masters_result(html: str) -> dict[str, Any]:
     }
 
 
-app = FastAPI(title="NU Masters Results API", version="1.1.2")
+app = FastAPI(title="NU Masters Results API", version="1.1.3")
 
 
 def _captcha_response(request: Request) -> dict[str, Any]:
@@ -203,19 +204,13 @@ def _captcha_response(request: Request) -> dict[str, Any]:
         return {"error": "Could not connect to the NU Masters result server."}
 
 
-app.get("/api/masters")(lambda action="examinations", request=None: {"error": "Unsupported Masters API action."})
-
-
-def _masters_get(action: str, request: Request):
+@app.get("/api/masters")
+def masters_get(request: Request, action: str = "examinations"):
     if action == "examinations":
         return {"examinations": MASTERS_EXAMINATIONS}
     if action == "captcha":
         return _captcha_response(request)
     return {"error": "Unsupported Masters API action."}
-
-
-app.router.routes.pop()
-app.get("/api/masters")(_masters_get)
 
 
 @app.post("/api/masters")
