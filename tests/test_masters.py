@@ -1,12 +1,13 @@
 import unittest
+from unittest.mock import patch
 
-from api.masters import MASTERS_EXAMINATIONS, parse_masters_result
-
+from api.masters import MASTERS_EXAMINATIONS, _captcha_response, parse_masters_result
 
 REAL_MASTERS_FINAL_HTML = """
 <html><body>
   <div class="container">
     <form method="POST" action="https://results.nu.ac.bd/pageexample">
+      <input type="hidden" name="_token" value="token">
       <select name="examination_name">
         <option value="3302" selected>Masters Final Result (Available from 2007)</option>
         <option value="4301">Preliminary to Master's Result (Available from 2005)</option>
@@ -52,6 +53,17 @@ REAL_MASTERS_FINAL_HTML = """
 </body></html>
 """
 
+SEARCH_HTML = """
+<html><body>
+<form method="POST" action="https://results.nu.ac.bd/pageABC123">
+<input type="hidden" name="_token" value="CSRF123">
+<select name="examination_name"><option value="3302">Masters Final</option></select>
+<span class="fw-bold fs-5">9 + 1 =</span>
+<input name="captcha">
+</form>
+</body></html>
+"""
+
 
 class MastersParserTests(unittest.TestCase):
     def test_exam_catalog_matches_nu(self):
@@ -89,6 +101,19 @@ class MastersParserTests(unittest.TestCase):
         result = parse_masters_result(REAL_MASTERS_FINAL_HTML)
         self.assertEqual(result["cgpa"], 2.50)
         self.assertIsNone(result["gpa"])
+
+    @patch("api.masters.rate_limited", return_value=False)
+    @patch("api.masters.requests.Session")
+    def test_captcha_reads_dynamic_form_action(self, session_cls, _rate_limited):
+        session = session_cls.return_value
+        session.get.return_value.text = SEARCH_HTML
+        session.get.return_value.raise_for_status.return_value = None
+        session.cookies.get_dict.return_value = {"laravel_session": "abc"}
+        result = _captcha_response(object())
+        self.assertEqual(result["captcha"], "9 + 1 =")
+        state = result["session"]
+        self.assertTrue(state)
+        session.get.assert_called_once()
 
     def test_non_result_page(self):
         result = parse_masters_result("<html><body>Invalid CAPTCHA</body></html>")
