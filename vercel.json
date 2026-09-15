@@ -21,12 +21,13 @@
     {
       "source": "/assets/js/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    },
+    {
+      "source": "/(honours|degree|masters)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, s-maxage=3600" }]
     }
   ],
   "rewrites": [
-    { "source": "/honours", "destination": "/" },
-    { "source": "/degree", "destination": "/" },
-    { "source": "/masters", "destination": "/" },
     { "source": "/how-to-use.html", "destination": "/pages/how-to-use.html" },
     { "source": "/grading.html", "destination": "/pages/grading.html" },
     { "source": "/about.html", "destination": "/pages/about.html" },
