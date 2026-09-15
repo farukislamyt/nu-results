@@ -9,7 +9,7 @@
 <link rel="canonical" href="/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>National University Result Archive | Honours, Degree &amp; Master's Results</title>
-<link rel="stylesheet" href="/assets/css/styles.css?v=13">
+<link rel="stylesheet" href="/assets/css/styles.css?v=14">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -36,23 +36,24 @@
 </nav>
 
 <main id="main" class="home-page">
-  <section class="home-hero" aria-labelledby="home-title">
-    <div class="home-content">
-      <div class="home-logo">
-        <a href="/" aria-label="NU Results home">
-          <img src="https://results.nu.ac.bd/assets/logo.webp" alt="National University Logo" width="120" height="120" fetchpriority="high" decoding="async">
+  <section class="home-selector" aria-labelledby="home-title">
+    <div class="home-selector-inner">
+      <h1 id="home-title">Select Result Type</h1>
+      <p class="home-selector-subtitle">Choose the result category you want to view.</p>
+      <div class="official-menu" aria-label="Result categories">
+        <a href="/honours" class="official-menu-btn type-card" data-module="honours" title="National University Honours Results">
+          <span><span class="menu-text">Honours Results</span><small>Bachelor Degree (Honours)</small></span>
+          <span class="menu-icon" aria-hidden="true">❯</span>
+        </a>
+        <a href="/degree" class="official-menu-btn type-card" data-module="degree" title="National University Degree Pass Results">
+          <span><span class="menu-text">Degree Pass Results</span><small>Bachelor Degree (Pass)</small></span>
+          <span class="menu-icon" aria-hidden="true">❯</span>
+        </a>
+        <a href="/masters" class="official-menu-btn type-card" data-module="masters" title="National University Master's Results">
+          <span><span class="menu-text">Master's Results</span><small>Master's / Preliminary to Master's</small></span>
+          <span class="menu-icon" aria-hidden="true">❯</span>
         </a>
       </div>
-      <h1 id="home-title" class="nu-title">National University, Bangladesh</h1>
-      <p class="home-subtitle">Results Archive</p>
-
-      <div class="official-menu" aria-label="National University Result Categories">
-        <a href="/honours" class="official-menu-btn type-card" data-module="honours" title="National University Honours Results"><span class="menu-text">Honours Results</span><span class="menu-icon" aria-hidden="true">❯</span></a>
-        <a href="/degree" class="official-menu-btn type-card" data-module="degree" title="National University Degree Pass Results"><span class="menu-text">Degree Pass Results</span><span class="menu-icon" aria-hidden="true">❯</span></a>
-        <a href="/masters" class="official-menu-btn type-card" data-module="masters" title="National University Master's Results"><span class="menu-text">Master's Results</span><span class="menu-icon" aria-hidden="true">❯</span></a>
-      </div>
-
-      <p class="home-note">Independent result-viewing interface · Results are retrieved from the official National University result server.</p>
     </div>
   </section>
 
@@ -67,7 +68,6 @@
     <div class="history hidden" id="historyBox"><div class="history-head"><b>Recent searches</b><button class="clear" id="clearHistory" type="button">Clear</button></div><div class="history-list" id="historyList"></div></div>
   </section>
   <section id="result" class="card result hidden" aria-live="polite"></section>
-  <section class="info-grid" aria-label="Result information"><div class="info-box"><h2>Official result data</h2><p>Results are requested from the National University result server and displayed without inventing values.</p></div><div class="info-box"><h2>Mobile friendly</h2><p>Responsive layouts keep search and result information readable on phones.</p></div><div class="info-box"><h2>Privacy minded</h2><p>Temporary search sessions are protected and recent searches remain locally on your device.</p></div><div class="info-box"><h2>Need help?</h2><p>Read the <a href="/how-to-use.html">How to Use</a> guide or review <a href="/grading.html">grading information</a>.</p></div></section>
 </main>
 
 <footer class="site-footer">
