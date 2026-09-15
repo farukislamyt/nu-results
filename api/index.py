@@ -14,13 +14,13 @@ from pydantic import BaseModel, Field
 from degree import DEGREE_EXAMINATIONS, DEGREE_URL, parse_degree_result
 
 app = FastAPI(title="NU Results API", version="2.2.0")
-# The frontend is served by Vercel as static files, so cross-origin access is unnecessary.
 app.add_middleware(CORSMiddleware, allow_origins=[], allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Accept"])
 
 NU_URL = "https://results.nu.ac.bd/honours"
 SESSION_TTL = 5 * 60
 RATE_WINDOW = 60
 RATE_LIMIT = 20
+PUBLIC_BASE = "https://nu-results-bd.vercel.app"
 _rate_cache: dict[str, list[float]] = {}
 
 
@@ -123,13 +123,7 @@ def parse_result(html: str) -> dict[str, Any]:
                 graded_count += 1
         except (ValueError, TypeError):
             pass
-    return {"found": True, "student": {
-        "name": result_value(soup, "Name of Student"), "father": result_value(soup, "Father's Name"),
-        "mother": result_value(soup, "Mother's Name"), "college": result_value(soup, "College"),
-        "session": result_value(soup, "Session"), "student_type": result_value(soup, "Student Type"),
-        "subject": result_value(soup, "Subject")},
-        "courses": courses,
-        "summary": {"total_courses": len(courses), "total_credit": round(total_credit, 2), "gpa": round(total_points / total_credit, 2) if total_credit and graded_count else None}}
+    return {"found": True, "student": {"name": result_value(soup, "Name of Student"), "father": result_value(soup, "Father's Name"), "mother": result_value(soup, "Mother's Name"), "college": result_value(soup, "College"), "session": result_value(soup, "Session"), "student_type": result_value(soup, "Student Type"), "subject": result_value(soup, "Subject")}, "courses": courses, "summary": {"total_courses": len(courses), "total_credit": round(total_credit, 2), "gpa": round(total_points / total_credit, 2) if total_credit and graded_count else None}}
 
 
 def client_ip(request: Request) -> str:
@@ -199,82 +193,48 @@ def degree_captcha(request: Request):
 
 @app.post("/api/result")
 def search_result(body: ResultRequest, request: Request):
-    if rate_limited(request):
-        return {"found": False, "message": "Too many searches. Please wait a minute and try again."}
-    if body.examination_name not in EXAMINATIONS:
-        return {"found": False, "message": "Unsupported examination type."}
+    if rate_limited(request): return {"found": False, "message": "Too many searches. Please wait a minute and try again."}
+    if body.examination_name not in EXAMINATIONS: return {"found": False, "message": "Unsupported examination type."}
     try:
         state = unseal(body.session)
-        if state.get("module") != "honours":
-            raise ValueError("wrong module")
-        csrf = state.get("csrf")
-        cookies = state.get("cookies") or {}
-        if not csrf:
-            raise ValueError("missing csrf")
-        client = requests.Session()
-        client.cookies.update(cookies)
+        if state.get("module") != "honours": raise ValueError("wrong module")
+        csrf = state.get("csrf"); cookies = state.get("cookies") or {}
+        if not csrf: raise ValueError("missing csrf")
+        client = requests.Session(); client.cookies.update(cookies)
         response = client.post(NU_URL, data={"_token": csrf, "examination_name": body.examination_name, "year": body.year, "examination_roll": body.examination_roll, "registration_no": body.registration_no, "captcha": body.captcha}, timeout=28, allow_redirects=True)
-        response.raise_for_status()
-        parsed = parse_result(response.text)
-        if not parsed.get("found"):
-            return {"found": False, "message": "Result was not found. Check your details and CAPTCHA."}
-        return parsed
-    except ValueError:
-        return {"found": False, "message": "Search session is invalid or expired. Please refresh the CAPTCHA."}
-    except RuntimeError:
-        return {"found": False, "message": "Server security configuration is incomplete."}
-    except requests.RequestException:
-        return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
+        response.raise_for_status(); parsed = parse_result(response.text)
+        return parsed if parsed.get("found") else {"found": False, "message": "Result was not found. Check your details and CAPTCHA."}
+    except ValueError: return {"found": False, "message": "Search session is invalid or expired. Please refresh the CAPTCHA."}
+    except RuntimeError: return {"found": False, "message": "Server security configuration is incomplete."}
+    except requests.RequestException: return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
 
 
 @app.post("/api/degree/result")
 def search_degree_result(body: DegreeResultRequest, request: Request):
-    if rate_limited(request):
-        return {"found": False, "message": "Too many searches. Please wait a minute and try again."}
-    if body.examination_name not in DEGREE_EXAMINATIONS:
-        return {"found": False, "message": "Unsupported Degree examination type."}
+    if rate_limited(request): return {"found": False, "message": "Too many searches. Please wait a minute and try again."}
+    if body.examination_name not in DEGREE_EXAMINATIONS: return {"found": False, "message": "Unsupported Degree examination type."}
     try:
         state = unseal(body.session)
-        if state.get("module") != "degree":
-            raise ValueError("wrong module")
-        csrf = state.get("csrf")
-        cookies = state.get("cookies") or {}
-        if not csrf:
-            raise ValueError("missing csrf")
-        client = requests.Session()
-        client.cookies.update(cookies)
-        data = {
-            "_token": csrf,
-            "examination_name": body.examination_name,
-            "year": body.year,
-            "examination_roll": body.examination_roll,
-            "registration_no": body.registration_no,
-            "captcha": body.captcha,
-        }
-        response = client.post(DEGREE_URL, data=data, timeout=28, allow_redirects=True)
-        response.raise_for_status()
-        parsed = parse_degree_result(response.text)
-        if not parsed.get("found"):
-            return {"found": False, "message": "Result was not found. Check your details and CAPTCHA."}
-        return parsed
-    except ValueError:
-        return {"found": False, "message": "Search session is invalid or expired. Please refresh the CAPTCHA."}
-    except RuntimeError:
-        return {"found": False, "message": "Server security configuration is incomplete."}
-    except requests.RequestException:
-        return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
+        if state.get("module") != "degree": raise ValueError("wrong module")
+        csrf = state.get("csrf"); cookies = state.get("cookies") or {}
+        if not csrf: raise ValueError("missing csrf")
+        client = requests.Session(); client.cookies.update(cookies)
+        response = client.post(DEGREE_URL, data={"_token": csrf, "examination_name": body.examination_name, "year": body.year, "examination_roll": body.examination_roll, "registration_no": body.registration_no, "captcha": body.captcha}, timeout=28, allow_redirects=True)
+        response.raise_for_status(); parsed = parse_degree_result(response.text)
+        return parsed if parsed.get("found") else {"found": False, "message": "Result was not found. Check your details and CAPTCHA."}
+    except ValueError: return {"found": False, "message": "Search session is invalid or expired. Please refresh the CAPTCHA."}
+    except RuntimeError: return {"found": False, "message": "Server security configuration is incomplete."}
+    except requests.RequestException: return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
 
 
 @app.get("/robots.txt", response_class=PlainTextResponse)
-def robots(request: Request):
-    base = str(request.base_url).rstrip("/")
-    return f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {base}/sitemap.xml\n"
+def robots():
+    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {PUBLIC_BASE}/sitemap.xml\n", media_type="text/plain")
 
 
 @app.get("/sitemap.xml", response_class=PlainTextResponse)
-def sitemap(request: Request):
-    base = str(request.base_url).rstrip("/")
-    pages = ["/", "/how-to-use.html", "/grading.html", "/about.html", "/privacy.html", "/disclaimer.html"]
-    urls = "".join(f"<url><loc>{base}{path}</loc></url>" for path in pages)
+def sitemap():
+    pages = ["/", "/honours", "/degree", "/masters", "/how-to-use.html", "/grading.html", "/about.html", "/privacy.html", "/disclaimer.html"]
+    urls = "".join(f"<url><loc>{PUBLIC_BASE}{path}</loc></url>" for path in pages)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return PlainTextResponse(xml, media_type="application/xml")
