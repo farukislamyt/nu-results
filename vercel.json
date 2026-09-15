@@ -1,12 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/index.py": {
-      "maxDuration": 30
-    },
-    "api/masters.py": {
-      "maxDuration": 30
-    }
+    "api/index.py": { "maxDuration": 30 },
+    "api/masters.py": { "maxDuration": 30 }
   },
   "headers": [
     {
@@ -20,18 +16,17 @@
     },
     {
       "source": "/assets/css/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
     },
     {
       "source": "/assets/js/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
     }
   ],
   "rewrites": [
+    { "source": "/honours", "destination": "/" },
+    { "source": "/degree", "destination": "/" },
+    { "source": "/masters", "destination": "/" },
     { "source": "/how-to-use.html", "destination": "/pages/how-to-use.html" },
     { "source": "/grading.html", "destination": "/pages/grading.html" },
     { "source": "/about.html", "destination": "/pages/about.html" },
