@@ -46,6 +46,7 @@
     const module = moduleLink.dataset.module;
     if (!routes[`/${module}`]) return;
     event.preventDefault();
+    event.stopImmediatePropagation();
     openRoute(module);
   }, true);
 
@@ -53,6 +54,7 @@
     const homeLink = event.target.closest('.site-nav a[href="/"]');
     if (!homeLink) return;
     event.preventDefault();
+    event.stopImmediatePropagation();
     openRoute('');
   }, true);
 
