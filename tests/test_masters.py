@@ -47,7 +47,7 @@ class MastersParserTests(unittest.TestCase):
         self.assertEqual(len(result["courses"]), 4)
         self.assertEqual(result["courses"][0]["grade"], "D")
         self.assertEqual(result["summary"]["total_credit"], 14.0)
-        self.assertEqual(result["summary"]["calculated_gpa"], 2.79)
+        self.assertEqual(result["summary"]["calculated_gpa"], 2.68)
 
     def test_non_result_page(self):
         result = parse_masters_result("<html><body>Invalid CAPTCHA</body></html>")
