@@ -36,27 +36,6 @@ def _value(soup: BeautifulSoup, *labels: str) -> str | None:
         cells = row.find_all(["th", "td"])
         if len(cells) >= 2 and _norm(cells[0].get_text(" ", strip=True).rstrip(":")) in wanted:
             return _clean(cells[1].get_text(" ", strip=True))
-    for element in soup.find_all(string=True):
-        label_text = _clean(str(element))
-        if not label_text or _norm(label_text.rstrip(":")) not in wanted:
-            continue
-        parent = element.parent
-        if not parent:
-            continue
-        container = parent.parent or parent
-        children = list(container.find_all(recursive=False))
-        seen = False
-        for child in children:
-            value = _clean(child.get_text(" ", strip=True))
-            if child is parent:
-                seen = True
-                continue
-            if seen and value:
-                return value
-        text = _clean(container.get_text(" ", strip=True)) or ""
-        match = re.search(r"^" + re.escape(label_text.rstrip(":")) + r"\s*:?[\-]?\s*(.+)$", text, re.I)
-        if match:
-            return _clean(match.group(1))
     return None
 
 
@@ -67,16 +46,6 @@ def _labeled_number(soup: BeautifulSoup, label: str) -> float | None:
         if len(cells) >= 2 and _norm(cells[0].get_text(" ", strip=True).rstrip(":")) == wanted:
             match = re.search(r"\b([0-4](?:\.\d{1,2})?)\b", cells[1].get_text(" ", strip=True))
             return round(float(match.group(1)), 2) if match else None
-    for element in soup.find_all(string=True):
-        if _norm(_clean(str(element)) or "") != wanted:
-            continue
-        parent = element.parent
-        if not parent:
-            continue
-        text = _clean((parent.parent or parent).get_text(" ", strip=True)) or ""
-        match = re.search(r"\b" + re.escape(label) + r"\b\s*[:=]?\s*([0-4](?:\.\d{1,2})?)\b", text, re.I)
-        if match:
-            return round(float(match.group(1)), 2)
     return None
 
 
@@ -143,13 +112,11 @@ def parse_masters_result(html: str) -> dict[str, Any]:
         candidate = _clean(element.get_text(" ", strip=True))
         if candidate and "masters" in candidate.lower() and "examination" in candidate.lower() and len(candidate) < 180:
             title = candidate
+            break
     if not title:
         match = re.search(r"(Masters[^|]{0,100}Examination[^|]{0,40})", text, re.I)
         title = _clean(match.group(1)) if match else None
     status = _value(soup, "Result Status", "Result", "Final Result", "Status")
-    if not status:
-        match = re.search(r"\b(Promoted|Not Promoted|Passed|Failed|Withheld|Absent|Improved|Pass|Fail)\b", text, re.I)
-        status = _clean(match.group(1)) if match else None
     upload_date = _value(soup, "Result Upload Date")
     generated_on = _value(soup, "Generated on", "Generated On")
     grade_points = {"A+": 4.0, "A": 3.75, "A-": 3.5, "B+": 3.25, "B": 3.0, "B-": 2.75, "C+": 2.5, "C": 2.25, "D": 2.0, "F": 0.0}
@@ -180,7 +147,7 @@ def parse_masters_result(html: str) -> dict[str, Any]:
     }
 
 
-app = FastAPI(title="NU Masters Results API", version="1.1.3")
+app = FastAPI(title="NU Masters Results API", version="1.2.0")
 
 
 def _captcha_response(request: Request) -> dict[str, Any]:
@@ -188,20 +155,24 @@ def _captcha_response(request: Request) -> dict[str, Any]:
         return {"error": "Too many requests. Please wait a minute and try again."}
     try:
         client = requests.Session()
-        response = client.get(MASTERS_URL, timeout=15)
+        # Use the same URL the browser uses. The form action is dynamic, but the
+        # GET endpoint is stable and establishes the Laravel session cookie.
+        response = client.get(MASTERS_URL, timeout=20, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/html,application/xhtml+xml"})
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         form = soup.find("form", method=lambda value: value and value.upper() == "POST")
         token_el = soup.find("input", {"name": "_token"})
-        captcha_el = soup.select_one("span.fw-bold.fs-5")
+        captcha_el = soup.select_one("form span.fw-bold.fs-5") or soup.select_one("span.fw-bold.fs-5")
         if not form or not token_el or not captcha_el:
-            return {"error": "NU Masters result form could not be read."}
+            return {"error": "Could not load the Master's CAPTCHA from the NU result server. Please refresh and try again."}
         action = urljoin(MASTERS_URL, form.get("action") or MASTERS_URL)
         return {"captcha": captcha_el.get_text(" ", strip=True), "session": seal({"csrf": token_el.get("value", ""), "cookies": client.cookies.get_dict(), "action": action, "module": "masters"}), "expires_in": 300}
     except RuntimeError:
         return {"error": "Server security configuration is incomplete."}
-    except requests.RequestException:
-        return {"error": "Could not connect to the NU Masters result server."}
+    except requests.RequestException as exc:
+        # Keep implementation detail out of the API response but make logs useful.
+        print(f"Masters CAPTCHA request failed: {type(exc).__name__}: {exc}")
+        return {"error": "Could not connect to the NU Masters result server. Please try again."}
 
 
 @app.get("/api/masters")
@@ -231,7 +202,7 @@ def masters_result(body: dict[str, Any], request: Request):
             raise ValueError("missing search session")
         client = requests.Session()
         client.cookies.update(cookies)
-        response = client.post(str(action), data={"_token": csrf, "examination_name": examination_name, "year": str(body.get("year", "")), "examination_roll": str(body.get("examination_roll", "")), "registration_no": str(body.get("registration_no", "")), "captcha": str(body.get("captcha", ""))}, timeout=28, allow_redirects=True)
+        response = client.post(str(action), data={"_token": csrf, "examination_name": examination_name, "year": str(body.get("year", "")), "examination_roll": str(body.get("examination_roll", "")), "registration_no": str(body.get("registration_no", "")), "captcha": str(body.get("captcha", ""))}, timeout=28, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0", "Referer": MASTERS_URL, "Accept": "text/html,application/xhtml+xml"})
         response.raise_for_status()
         parsed = parse_masters_result(response.text)
         if not parsed.get("found"):
@@ -241,8 +212,9 @@ def masters_result(body: dict[str, Any], request: Request):
         return {"found": False, "message": "Search session is invalid or expired. Please refresh the CAPTCHA."}
     except RuntimeError:
         return {"found": False, "message": "Server security configuration is incomplete."}
-    except requests.RequestException:
-        return {"found": False, "message": "NU Masters result server is taking too long to respond. Please try again without changing your CAPTCHA."}
+    except requests.RequestException as exc:
+        print(f"Masters result request failed: {type(exc).__name__}: {exc}")
+        return {"found": False, "message": "NU Masters result server is unavailable right now. Please try again."}
 
 
 __all__ = ["MASTERS_CAPTCHA_REFRESH_URL", "MASTERS_EXAMINATIONS", "MASTERS_URL", "parse_masters_result"]
