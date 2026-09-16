@@ -21,6 +21,7 @@ SESSION_TTL = 5 * 60
 RATE_WINDOW = 60
 RATE_LIMIT = 20
 PUBLIC_BASE = "https://nu-results-bd.vercel.app"
+SITEMAP_LASTMOD = "2026-09-16"
 _rate_cache: dict[str, list[float]] = {}
 
 
@@ -235,6 +236,6 @@ def robots():
 @app.get("/sitemap.xml", response_class=PlainTextResponse)
 def sitemap():
     pages = ["/", "/honours", "/degree", "/masters", "/how-to-use.html", "/grading.html", "/about.html", "/privacy.html", "/disclaimer.html"]
-    urls = "".join(f"<url><loc>{PUBLIC_BASE}{path}</loc></url>" for path in pages)
+    urls = "".join(f"<url><loc>{PUBLIC_BASE}{path}</loc><lastmod>{SITEMAP_LASTMOD}</lastmod></url>" for path in pages)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return PlainTextResponse(xml, media_type="application/xml")
