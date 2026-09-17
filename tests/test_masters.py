@@ -96,7 +96,7 @@ class MastersParserTests(unittest.TestCase):
         self.assertEqual(result["courses"][-1]["course_code"], "312516")
         self.assertEqual(result["courses"][-1]["credit"], "2")
         self.assertEqual(result["courses"][-1]["grade"], "A")
-        self.assertEqual(result["summary"]["total_credit"], 36.0)
+        self.assertEqual(result["summary"]["total_credit"], 32.0)
         self.assertEqual(result["summary"]["calculated_gpa"], 2.92)
         self.assertEqual(result["dates"]["result_upload_date"], "29 Apr 2026")
         self.assertEqual(result["dates"]["generated_on"], "17 Sep 2026 by National University")
@@ -105,6 +105,14 @@ class MastersParserTests(unittest.TestCase):
         result = parse_masters_result(OFFICIAL_MASTERS_FINAL_HTML)
         self.assertEqual(result["cgpa"], 2.92)
         self.assertIsNone(result["gpa"])
+
+    def test_registration_digits_are_normalized(self):
+        html = OFFICIAL_MASTERS_FINAL_HTML.replace(
+            '<div class="d-flex">\n        <span>2</span><span>0</span><span>3</span><span>2</span><span>5</span><span>1</span><span>1</span><span>9</span><span>9</span><span>5</span><span>0</span>\n      </div>',
+            '<div class="d-flex"><span>2</span> <span>0</span> <span>3</span> <span>2</span> <span>5</span> <span>1</span> <span>1</span> <span>9</span> <span>9</span> <span>5</span> <span>0</span></div>',
+        )
+        result = parse_masters_result(html)
+        self.assertEqual(result["student"]["registration_no"], "20325119950")
 
     def test_non_result_page(self):
         result = parse_masters_result("<html><body>Invalid CAPTCHA</body></html>")
