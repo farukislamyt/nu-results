@@ -24,9 +24,9 @@
     }
   ],
   "rewrites": [
-    { "source": "/honours", "destination": "/pages/honours.html" },
-    { "source": "/degree", "destination": "/pages/degree.html" },
-    { "source": "/masters", "destination": "/pages/masters.html" },
+    { "source": "/honours", "destination": "/honours/index.html" },
+    { "source": "/degree", "destination": "/degree/index.html" },
+    { "source": "/masters", "destination": "/masters/index.html" },
     { "source": "/how-to-use.html", "destination": "/pages/how-to-use.html" },
     { "source": "/grading.html", "destination": "/pages/grading.html" },
     { "source": "/about.html", "destination": "/pages/about.html" },
