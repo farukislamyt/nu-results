@@ -1,0 +1,1 @@
+Fixture for Honours 2205 consolidated result parser tests.
