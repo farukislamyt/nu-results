@@ -11,19 +11,23 @@
     }
   };
 
+  const module = document.body.dataset.module || 'home';
+  const isHome = module === 'home';
+
   await Promise.all([
     load('global-header','/components/header.html'),
-    load('global-nav','/components/nav.html'),
+    isHome ? Promise.resolve() : load('global-nav','/components/nav.html'),
     load('global-footer','/components/footer.html')
   ]);
 
-  const module = document.body.dataset.module || 'home';
-  document.querySelectorAll('[data-nav]').forEach(link => {
-    if (link.dataset.nav === module) {
-      link.classList.add('active');
-      link.setAttribute('aria-current','page');
-    }
-  });
+  if (!isHome) {
+    document.querySelectorAll('[data-nav]').forEach(link => {
+      if (link.dataset.nav === module) {
+        link.classList.add('active');
+        link.setAttribute('aria-current','page');
+      }
+    });
+  }
 
   const menu = document.getElementById('menu');
   const nav = document.getElementById('navLinks');
