@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 from urllib.parse import urljoin
 
@@ -21,23 +22,21 @@ NU_ORIGIN = "https://results.nu.ac.bd"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
 HTML_HEADERS = {
     "User-Agent": UA,
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-User": "?1",
+    "Sec-Fetch-Dest": "document",
 }
 GRADE_POINTS = {
-    "A+": 4.0,
-    "A": 3.75,
-    "A-": 3.5,
-    "B+": 3.25,
-    "B": 3.0,
-    "B-": 2.75,
-    "C+": 2.5,
-    "C": 2.25,
-    "D": 2.0,
-    "F": 0.0,
+    "A+": 4.0, "A": 3.75, "A-": 3.5, "B+": 3.25, "B": 3.0,
+    "B-": 2.75, "C+": 2.5, "C": 2.25, "D": 2.0, "F": 0.0,
 }
-app = FastAPI(title="NU Masters Results API", version="1.4.0")
+app = FastAPI(title="NU Masters Results API", version="1.5.0")
 
 
 def _clean(value: str | None) -> str | None:
@@ -59,12 +58,10 @@ def _value(soup: BeautifulSoup, *labels: str) -> str | None:
     """Extract a labelled value without depending on Bootstrap presentation classes."""
     wanted = {_norm(label) for label in labels}
     scope = _result_section(soup)
-
     for row in scope.find_all("tr"):
         cells = row.find_all(["th", "td"])
         if len(cells) >= 2 and _norm(cells[0].get_text(" ", strip=True).rstrip(":")) in wanted:
             return _clean(cells[1].get_text(" ", strip=True))
-
     for node in scope.find_all(string=True):
         label = _clean(str(node))
         if not label or _norm(label.rstrip(":")) not in wanted:
@@ -88,7 +85,6 @@ def _value(soup: BeautifulSoup, *labels: str) -> str | None:
                 value = _clean(child.get_text(" ", strip=True))
                 if value:
                     return value
-
     return None
 
 
@@ -103,8 +99,7 @@ def _registration(soup: BeautifulSoup) -> str | None:
         if not parent:
             continue
         box = parent.parent or parent
-        raw = box.get_text(" ", strip=True)
-        digits = "".join(re.findall(r"\d", raw))
+        digits = "".join(re.findall(r"\d", box.get_text(" ", strip=True)))
         if 5 <= len(digits) <= 11:
             return digits
     value = _value(scope, "Registration No.", "Registration Number", "Registration")
@@ -128,18 +123,11 @@ def _courses(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], str | None]:
         headers = [_clean(cell.get_text(" ", strip=True)) or "" for cell in table.find_all("th")]
         normalized = [_norm(header) for header in headers]
         course_index = next((i for i, value in enumerate(normalized) if value == "coursecode"), None)
-        title_index = next(
-            (i for i, value in enumerate(normalized) if value in {"titleofcourse", "coursetitle", "coursename"}),
-            None,
-        )
-        result_index = next(
-            (i for i, value in enumerate(normalized) if value in {"lettergrade", "grade", "result", "marks", "gradeormarks"}),
-            None,
-        )
+        title_index = next((i for i, value in enumerate(normalized) if value in {"titleofcourse", "coursetitle", "coursename"}), None)
+        result_index = next((i for i, value in enumerate(normalized) if value in {"lettergrade", "grade", "result", "marks", "gradeormarks"}), None)
         credit_index = next((i for i, value in enumerate(normalized) if value in {"credit", "credits"}), None)
         if course_index is None or title_index is None or result_index is None:
             continue
-
         rows: list[dict[str, Any]] = []
         body = table.find("tbody") or table
         for row in body.find_all("tr"):
@@ -152,16 +140,13 @@ def _courses(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], str | None]:
             code, title, result = cells[course_index], cells[title_index], cells[result_index]
             if not code or not title or not result or not re.fullmatch(r"\d{4,8}", code):
                 continue
-            credit = cells[credit_index] if credit_index is not None else None
-            rows.append(
-                {
-                    "course_code": code,
-                    "course_title": title,
-                    "credit": credit,
-                    "grade": result,
-                    "result": result,
-                }
-            )
+            rows.append({
+                "course_code": code,
+                "course_title": title,
+                "credit": cells[credit_index] if credit_index is not None else None,
+                "grade": result,
+                "result": result,
+            })
         if rows:
             return rows, headers[result_index]
     return [], None
@@ -198,7 +183,6 @@ def parse_masters_result(html: str) -> dict[str, Any]:
     soup = BeautifulSoup(html, "html.parser")
     if not _is_result_page(soup):
         return {"found": False}
-
     courses, result_label = _courses(soup)
     cgpa = _number(soup, "CGPA")
     gpa = _number(soup, "GPA")
@@ -213,21 +197,17 @@ def parse_masters_result(html: str) -> dict[str, Any]:
         "student_type": _value(soup, "Student Type", "StudentType"),
         "subject": _value(soup, "Subject", "Subject Name", "Course", "Course Name"),
     }
-
-    total_credit = 0.0
-    total_points = 0.0
+    total_credit = total_points = 0.0
     for course in courses:
         try:
             credit = float(course["credit"]) if course.get("credit") else 0.0
-            grade = str(course.get("grade") or "").upper().strip()
-            grade_point = GRADE_POINTS.get(grade)
+            grade_point = GRADE_POINTS.get(str(course.get("grade") or "").upper().strip())
             if credit > 0 and grade_point is not None:
                 total_credit += credit
                 total_points += credit * grade_point
         except (TypeError, ValueError):
             continue
     calculated_gpa = round(total_points / total_credit, 2) if total_credit else None
-
     return {
         "found": True,
         "result_title": _result_title(soup),
@@ -250,25 +230,43 @@ def parse_masters_result(html: str) -> dict[str, Any]:
     }
 
 
-def _get_form(client: requests.Session) -> tuple[str, str, str] | None:
-    response = client.get(MASTERS_URL, headers=HTML_HEADERS, timeout=15)
-    response.raise_for_status()
+def _form_from_response(response: requests.Response) -> tuple[str, str, str] | None:
     soup = BeautifulSoup(response.text, "html.parser")
     form = soup.find("form", method=lambda value: value and value.upper() == "POST")
     if not form:
         return None
-
     token = form.find("input", {"name": "_token"})
-    captcha = form.select_one("span.fw-bold.fs-5") or form.select_one("span.fw-bold")
+    captcha = (
+        form.select_one("span.fw-bold.fs-5")
+        or form.select_one("span.fw-bold")
+        or form.find(string=re.compile(r"\d+\s*\+\s*\d+\s*="))
+    )
     action = form.get("action")
     if not token or not captcha or not action:
         return None
-
     csrf = _clean(token.get("value"))
-    question = _clean(captcha.get_text(" ", strip=True))
+    question = _clean(captcha.get_text(" ", strip=True) if hasattr(captcha, "get_text") else str(captcha))
     if not csrf or not question:
         return None
     return csrf, urljoin(MASTERS_URL, action), question
+
+
+def _get_form(client: requests.Session) -> tuple[str, str, str] | None:
+    """Fetch the official Masters form while preserving the NU session cookies."""
+    headers = {**HTML_HEADERS, "Referer": f"{NU_ORIGIN}/"}
+    last_error: requests.RequestException | None = None
+    for url in (MASTERS_URL, f"{MASTERS_URL}?_={int(time.time())}"):
+        try:
+            response = client.get(url, headers=headers, timeout=20, allow_redirects=True)
+            response.raise_for_status()
+            parsed = _form_from_response(response)
+            if parsed:
+                return parsed
+        except requests.RequestException as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    return None
 
 
 def _captcha(request: Request) -> dict[str, Any]:
@@ -282,18 +280,21 @@ def _captcha(request: Request) -> dict[str, Any]:
         csrf, action, question = parsed
         return {
             "captcha": question,
-            "session": seal(
-                {
-                    "csrf": csrf,
-                    "cookies": client.cookies.get_dict(),
-                    "action": action,
-                    "module": "masters",
-                }
-            ),
+            "session": seal({
+                "csrf": csrf,
+                "cookies": client.cookies.get_dict(),
+                "action": action,
+                "module": "masters",
+            }),
             "expires_in": 300,
         }
     except RuntimeError:
         return {"error": "Server security configuration is incomplete."}
+    except requests.HTTPError as exc:
+        code = exc.response.status_code if exc.response is not None else 0
+        if code in {403, 429}:
+            return {"error": "The NU Masters result server temporarily rejected the CAPTCHA request. Please refresh and try again."}
+        return {"error": f"NU Masters result server returned HTTP {code} while loading CAPTCHA."}
     except requests.RequestException:
         return {"error": "Could not connect to the NU Masters result server."}
 
@@ -311,7 +312,6 @@ def masters_get(request: Request, action: str = "examinations"):
 def masters_result(body: dict[str, Any], request: Request):
     if rate_limited(request):
         return {"found": False, "message": "Too many searches. Please wait a minute and try again."}
-
     exam = str(body.get("examination_name", ""))
     year = str(body.get("year", ""))
     roll = str(body.get("examination_roll", ""))
@@ -327,7 +327,6 @@ def masters_result(body: dict[str, Any], request: Request):
         return {"found": False, "message": "Registration number must contain 5 to 11 digits."}
     if not captcha:
         return {"found": False, "message": "Please enter the CAPTCHA answer."}
-
     try:
         state = unseal(str(body.get("session", "")))
         if state.get("module") != "masters":
@@ -337,7 +336,6 @@ def masters_result(body: dict[str, Any], request: Request):
         cookies = state.get("cookies") or {}
         if not csrf or not action:
             raise ValueError("missing session")
-
         client = requests.Session()
         client.cookies.update(cookies)
         headers = {
@@ -345,6 +343,10 @@ def masters_result(body: dict[str, Any], request: Request):
             "Referer": MASTERS_URL,
             "Origin": NU_ORIGIN,
             "Content-Type": "application/x-www-form-urlencoded",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-User": "?1",
+            "Sec-Fetch-Dest": "document",
         }
         response = client.post(
             str(action),
@@ -364,7 +366,6 @@ def masters_result(body: dict[str, Any], request: Request):
         parsed = parse_masters_result(response.text)
         if parsed.get("found"):
             return parsed
-
         source_text = BeautifulSoup(response.text, "html.parser").get_text(" ", strip=True).lower()
         if "captcha" in source_text and any(word in source_text for word in ("invalid", "incorrect", "wrong")):
             return {"found": False, "message": "Invalid CAPTCHA. Please refresh the CAPTCHA and try again."}
@@ -373,6 +374,11 @@ def masters_result(body: dict[str, Any], request: Request):
         return {"found": False, "message": "Search session is invalid or expired. Please refresh the CAPTCHA."}
     except RuntimeError:
         return {"found": False, "message": "Server security configuration is incomplete."}
+    except requests.HTTPError as exc:
+        code = exc.response.status_code if exc.response is not None else 0
+        if code in {403, 429}:
+            return {"found": False, "message": "The NU Masters result server temporarily rejected the request. Please refresh the CAPTCHA and try again."}
+        return {"found": False, "message": f"NU Masters result server returned HTTP {code}."}
     except requests.RequestException:
         return {"found": False, "message": "NU Masters result server is taking too long to respond. Please try again without changing your CAPTCHA."}
 
