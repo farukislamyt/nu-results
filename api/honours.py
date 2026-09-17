@@ -47,29 +47,35 @@ def _parse_consolidated_courses(soup: BeautifulSoup) -> tuple[list[dict[str, Any
     courses: list[dict[str, Any]] = []
     yearly_gpa: dict[str, float] = {}
     outer = None
+    expected_headers = {"first year", "second year", "third year", "fourth year"}
     for table in soup.find_all("table"):
-        headers = [th.get_text(" ", strip=True).lower() for th in table.find_all("th", recursive=False)]
-        if {"first year", "second year", "third year", "fourth year"}.issubset(set(headers)):
+        thead = table.find("thead", recursive=False)
+        header_row = thead.find("tr", recursive=False) if thead else None
+        headers = [th.get_text(" ", strip=True).lower() for th in header_row.find_all("th", recursive=False)] if header_row else []
+        if expected_headers.issubset(set(headers)):
             outer = table
             break
     if outer is None:
         return courses, yearly_gpa
 
     year_names = ["First Year", "Second Year", "Third Year", "Fourth Year"]
-    row = outer.find("tbody", recursive=False)
-    cells = row.find("tr").find_all("td", recursive=False) if row and row.find("tr", recursive=False) else []
+    tbody = outer.find("tbody", recursive=False)
+    result_row = tbody.find("tr", recursive=False) if tbody else None
+    cells = result_row.find_all("td", recursive=False) if result_row else []
     for index, cell in enumerate(cells[:4]):
         year_name = year_names[index]
         nested = None
-        for table in cell.find_all("table"):
-            headers = [th.get_text(" ", strip=True).lower() for th in table.find_all("th")]
+        for table in cell.find_all("table", recursive=False):
+            thead = table.find("thead", recursive=False)
+            header_row = thead.find("tr", recursive=False) if thead else None
+            headers = [th.get_text(" ", strip=True).lower() for th in header_row.find_all("th", recursive=False)] if header_row else []
             if "course code" in headers and "lg" in headers:
                 nested = table
                 break
         if nested is None:
             continue
         for tr in nested.find_all("tr"):
-            tds = tr.find_all("td")
+            tds = tr.find_all("td", recursive=False)
             if len(tds) < 2:
                 continue
             code = tds[0].get_text(" ", strip=True)
@@ -81,14 +87,18 @@ def _parse_consolidated_courses(soup: BeautifulSoup) -> tuple[list[dict[str, Any
             course_code = code[:match.start()] if match else code
             courses.append({"course_code": course_code, "course_title": year_name, "credit": credit, "grade": grade, "grade_point": grade_point(grade), "year": year_name})
 
-    gpa_row = outer.find("thead", recursive=False)
-    if gpa_row:
-        gpa_tr = gpa_row.find("tr")
-        if gpa_tr:
-            for index, td in enumerate(gpa_tr.find_all("td", recursive=False)[:4]):
-                match = re.search(r"GPA\s*:\s*([0-9]+(?:\.[0-9]+)?)", td.get_text(" ", strip=True), re.I)
-                if match:
-                    yearly_gpa[year_names[index]] = float(match.group(1))
+    for tr in outer.find_all("tr"):
+        cells = tr.find_all("td", recursive=False)
+        if len(cells) != 4:
+            continue
+        values = [cell.get_text(" ", strip=True) for cell in cells]
+        if not all(re.search(r"GPA\s*:\s*[0-9]+(?:\.[0-9]+)?", value, re.I) for value in values):
+            continue
+        for index, value in enumerate(values):
+            match = re.search(r"GPA\s*:\s*([0-9]+(?:\.[0-9]+)?)", value, re.I)
+            if match:
+                yearly_gpa[year_names[index]] = float(match.group(1))
+        break
     return courses, yearly_gpa
 
 
@@ -128,13 +138,14 @@ def parse_result(html: str, examination_name: str | None = None) -> dict[str, An
     result: dict[str, Any] = {"found": True, "student": {"name": result_value(soup, "Name of Student"), "father": result_value(soup, "Father's Name"), "mother": result_value(soup, "Mother's Name"), "college": result_value(soup, "College"), "session": result_value(soup, "Session"), "student_type": result_value(soup, "Student Type"), "subject": result_value(soup, "Subject")}, "courses": courses, "summary": {"total_courses": len(courses), "total_credit": round(total_credit, 2), "gpa": round(total_points / total_credit, 2) if total_credit and graded_count else None}}
     if yearly_gpa:
         result["summary"]["yearly_gpa"] = yearly_gpa
-        cgpa_el = soup.find(string=re.compile(r"^\s*CGPA\s*$", re.I))
-        if cgpa_el:
-            container = cgpa_el.parent.parent if cgpa_el.parent else None
+        cgpa_values = soup.find_all(string=re.compile(r"^\s*CGPA\s*$", re.I))
+        for label in cgpa_values:
+            container = label.parent.parent if label.parent and label.parent.parent else None
             value = container.get_text(" ", strip=True) if container else ""
             match = re.search(r"CGPA\s*([0-9]+(?:\.[0-9]+)?)", value, re.I)
             if match:
                 result["summary"]["official_cgpa"] = float(match.group(1))
+                break
     return result
 
 
