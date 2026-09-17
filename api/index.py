@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from api.common.security import SESSION_TTL, rate_limited, seal, unseal
@@ -17,9 +15,6 @@ from api.honours import EXAMINATIONS, grade_point, parse_result, router as honou
 app = FastAPI(title="NU Results API", version="2.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=[], allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Accept"])
 app.include_router(honours_router)
-
-PUBLIC_BASE = "https://nu-results-bd.vercel.app"
-SITEMAP_LASTMOD = "2026-09-16"
 
 class DegreeResultRequest(BaseModel):
     session: str = Field(min_length=20, max_length=4096)
@@ -90,18 +85,5 @@ def search_degree_result(body: DegreeResultRequest, request: Request):
         return {"found": False, "message": "Server security configuration is incomplete."}
     except requests.RequestException:
         return {"found": False, "message": "NU result server is taking too long to respond. Please try again without changing your CAPTCHA."}
-
-
-@app.get("/robots.txt", response_class=PlainTextResponse)
-def robots():
-    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {PUBLIC_BASE}/sitemap.xml\n", media_type="text/plain")
-
-
-@app.get("/sitemap.xml", response_class=PlainTextResponse)
-def sitemap():
-    pages = ["/", "/honours", "/degree", "/masters", "/how-to-use.html", "/grading.html", "/about.html", "/privacy.html", "/disclaimer.html"]
-    urls = "".join(f"<url><loc>{PUBLIC_BASE}{path}</loc><lastmod>{SITEMAP_LASTMOD}</lastmod></url>" for path in pages)
-    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
-    return PlainTextResponse(xml, media_type="application/xml")
 
 __all__ = ["EXAMINATIONS", "app", "grade_point", "parse_result", "seal", "unseal"]
